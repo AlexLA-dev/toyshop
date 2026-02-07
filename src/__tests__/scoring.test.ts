@@ -113,40 +113,40 @@ describe('calculatePlacementScore', () => {
     expect(result.total).toBe(0);
   });
 
-  it('scores by tile count when matching color connects', () => {
+  it('scores 2000 when two tiles of matching color connect', () => {
     const board = boardWithRegister();
     board[0][1] = fullTile('t1', ToyCategory.Bakery, 'donut');
     const bakeryTile = fullTile('t2', ToyCategory.Bakery, 'croissant');
-    // Two tiles with bakery = score 2 (per-tile scoring)
+    // Two tiles with bakery = score 2 × 1000
     const result = calculatePlacementScore(board, bakeryTile, { row: 0, col: 0 });
-    expect(result.total).toBe(2);
+    expect(result.total).toBe(2000);
   });
 
-  it('scores 1 when placing next to register (single tile in region)', () => {
+  it('scores 0 when placing next to register (single tile in region)', () => {
     const board = boardWithRegister();
     const tile = fullTile('t1', ToyCategory.IceCream, 'soft_serve');
-    // Place next to register: region has 1 tile with ice_cream, register connects externally
+    // Single tile touching register: region has only 1 tile, needs 2+ to score
     const result = calculatePlacementScore(board, tile, { row: 1, col: 0 });
-    expect(result.total).toBe(1);
+    expect(result.total).toBe(0);
   });
 
   it('register connects separate regions of the same color', () => {
     const board = boardWithRegister();
     board[1][0] = fullTile('t1', ToyCategory.Bakery, 'donut');
     const bakeryTile = fullTile('t2', ToyCategory.Bakery, 'croissant');
-    // Two bakery tiles connected through register = 2 tiles
+    // Two bakery tiles connected through register = 2 × 1000
     const result = calculatePlacementScore(board, bakeryTile, { row: 1, col: 2 });
-    expect(result.total).toBe(2);
+    expect(result.total).toBe(2000);
   });
 
-  it('scores 3 when connecting to two existing tiles', () => {
+  it('scores 3000 when connecting to two existing tiles', () => {
     const board = boardWithRegister();
     board[0][1] = fullTile('t1', ToyCategory.Bakery, 'donut');
     board[1][0] = fullTile('t2', ToyCategory.Bakery, 'croissant');
-    // Place at (0,0): connects to t1 directly, and to t2 directly
+    // Place at (0,0): connects to t1 directly, and to t2 directly = 3 × 1000
     const bakeryTile = fullTile('t3', ToyCategory.Bakery, 'waffle');
     const result = calculatePlacementScore(board, bakeryTile, { row: 0, col: 0 });
-    expect(result.total).toBe(3);
+    expect(result.total).toBe(3000);
   });
 });
 
@@ -184,19 +184,19 @@ describe('checkDiversityAward', () => {
 });
 
 describe('calculateFinalScore', () => {
-  it('sums coins, money tokens, and awards', () => {
+  it('sums coins and awards', () => {
     const board = boardWithRegister();
     const player: Player = {
       id: 'p1', name: 'Test',
-      coins: 7,
-      moneyTokens: 2,
+      coins: 7000,
+      moneyTokens: 0,
       awards: [
-        { type: AwardType.Diversity, category: ToyCategory.Bakery, value: 5 },
-        { type: AwardType.Majority, category: ToyCategory.IceCream, value: 5 },
+        { type: AwardType.Diversity, category: ToyCategory.Bakery, value: 5000 },
+        { type: AwardType.Majority, category: ToyCategory.IceCream, value: 5000 },
       ],
       board,
       starterPos: { row: 1, col: 1 },
     };
-    expect(calculateFinalScore(player)).toBe(37);
+    expect(calculateFinalScore(player)).toBe(17000);
   });
 });

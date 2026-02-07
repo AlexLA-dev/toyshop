@@ -8,8 +8,8 @@ interface ScoreBarProps {
 }
 
 export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
-  const totalCoins = player.coins + player.moneyTokens * 10;
-  const awardBonus = player.awards.length * 5;
+  const totalCoins = player.coins;
+  const awardBonus = player.awards.reduce((s, a) => s + a.value, 0);
   const filledSlots = player.board.flat().filter(t => t !== null).length;
   const tilesPlaced = filledSlots - 1;
   const progress = tilesPlaced / 15;
@@ -30,19 +30,19 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         {/* Score */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <StatChip icon="🪙" value={totalCoins} label="монет" />
-          {player.awards.length > 0 && (
-            <StatChip icon="🏆" value={`+${awardBonus}`} label="награды" />
+          <StatChip icon="💵" value={totalCoins} />
+          {awardBonus > 0 && (
+            <StatChip icon="🏆" value={`+${awardBonus}`} />
           )}
         </div>
 
         {/* Deck + progress */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 16, color: '#999' }}>
+          <span style={{ fontSize: 18, color: '#999' }}>
             🃏 {deckRemaining}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 14, color: '#aaa' }}>{tilesPlaced}/15</span>
+            <span style={{ fontSize: 16, color: '#aaa', fontWeight: 600 }}>{tilesPlaced}/15</span>
             <div style={{
               width: 60,
               height: 6,
@@ -64,7 +64,7 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
 
       {/* Awards row */}
       {player.awards.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+        <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
           {player.awards.map((award, i) => (
             <AwardBadge key={i} award={award} />
           ))}
@@ -74,11 +74,11 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
       {/* Message */}
       <div style={{
         textAlign: 'center',
-        fontSize: 18,
-        fontWeight: 600,
+        fontSize: 22,
+        fontWeight: 700,
         color: '#555',
         marginTop: 6,
-        minHeight: 24,
+        minHeight: 28,
       }}>
         {message}
       </div>
@@ -86,12 +86,11 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
   );
 }
 
-function StatChip({ icon, value, label }: { icon: string; value: number | string; label: string }) {
+function StatChip({ icon, value }: { icon: string; value: number | string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-      <span style={{ fontSize: 24 }}>{icon}</span>
-      <span style={{ fontSize: 26, fontWeight: 700, color: '#333' }}>{value}</span>
-      <span style={{ fontSize: 14, color: '#999' }}>{label}</span>
+      <span style={{ fontSize: 28 }}>{icon}</span>
+      <span style={{ fontSize: 32, fontWeight: 800, color: '#333' }}>{value}</span>
     </div>
   );
 }
@@ -104,16 +103,17 @@ function AwardBadge({ award }: { award: Award }) {
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 3,
-        padding: '2px 10px',
-        borderRadius: 10,
+        gap: 4,
+        padding: '3px 12px',
+        borderRadius: 12,
         backgroundColor: color,
         color: '#fff',
-        fontSize: 13,
-        fontWeight: 600,
+        fontSize: 14,
+        fontWeight: 700,
+        whiteSpace: 'nowrap',
       }}
     >
-      +5 {catName}
+      +5000 {catName}
     </div>
   );
 }

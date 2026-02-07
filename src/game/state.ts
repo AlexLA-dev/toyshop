@@ -1,4 +1,4 @@
-import type { GameState, Player, GridPos, Award } from './types';
+import type { GameState, Player, GridPos, Award, Tile } from './types';
 import { GamePhase, TurnStep, ToyCategory, AwardType } from './types';
 import { generateDeck, generateStarterTiles, generateTutorialMarket, generateTutorialDeck } from './tiles';
 import { calculatePlacementScore, checkDiversityAward } from './scoring';
@@ -49,9 +49,6 @@ export function createGameState(playerCount: number): GameState {
   };
 }
 
-// Need Tile type for the board array
-import type { Tile } from './types';
-
 /** Create a single-player game */
 export function createSinglePlayerGame(): GameState {
   return createGameState(1);
@@ -94,13 +91,12 @@ export function createTutorialGame(): GameState {
 /**
  * Place a tile from the market onto the board.
  * Removes tile from market and draws a replacement from deck.
- * Selection is handled in the UI — this function does the commit.
  */
 export function placeTile(
   state: GameState,
   marketIndex: number,
   pos: GridPos
-): { state: GameState; score: number; regionScores: { category: ToyCategory; cells: number }[] } {
+): { state: GameState; score: number; regionScores: { category: ToyCategory; tiles: number }[] } {
   const tile = state.market[marketIndex];
   const player = state.players[state.currentPlayerIndex];
   const board = player.board.map(row => [...row]);
@@ -116,13 +112,8 @@ export function placeTile(
     newMarket.push(newDeck.shift()!);
   }
 
-  // Update coins
-  let coins = player.coins + scoreResult.total;
-  let moneyTokens = player.moneyTokens;
-  while (coins >= 10) {
-    coins -= 10;
-    moneyTokens++;
-  }
+  // Accumulate coins directly (no money token conversion)
+  const coins = player.coins + scoreResult.total;
 
   // Check diversity awards
   const newAwards: Award[] = [...player.awards];
@@ -132,7 +123,7 @@ export function placeTile(
       const updatedPlayer = { ...player, board };
       if (checkDiversityAward(updatedPlayer, category)) {
         diversityAwardsTaken[category] = true;
-        newAwards.push({ type: AwardType.Diversity, category, value: 5 });
+        newAwards.push({ type: AwardType.Diversity, category, value: 5000 });
       }
     }
   }
@@ -141,7 +132,7 @@ export function placeTile(
     ...player,
     board,
     coins,
-    moneyTokens,
+    moneyTokens: 0,
     awards: newAwards,
   };
 
@@ -162,7 +153,7 @@ export function placeTile(
   };
 }
 
-/** End the current turn: advance to next player (market already refilled on place) */
+/** End the current turn */
 export function endTurn(state: GameState): GameState {
   const currentPlayer = state.players[state.currentPlayerIndex];
   const filledSlots = currentPlayer.board.flat().filter(t => t !== null).length;

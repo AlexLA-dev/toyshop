@@ -49,6 +49,12 @@ function randomCategory(): ToyCategory {
   return pickRandom(cats);
 }
 
+/** Pick N distinct random categories */
+function distinctCategories(n: number): ToyCategory[] {
+  const all = shuffle(Object.values(ToyCategory) as ToyCategory[]);
+  return all.slice(0, n);
+}
+
 /** Generate a tile with the Full layout (all one color) */
 function generateFullTile(): Tile {
   const cat = randomCategory();
@@ -57,14 +63,11 @@ function generateFullTile(): Tile {
   return { id: nextTileId(), layout: TileLayout.Full, blocks, isStarter: false };
 }
 
-/** Generate a tile with two halves */
+/** Generate a tile with two halves (always different colors) */
 function generateTwoHalvesTile(): Tile {
   const split = pickRandom(HALF_SPLITS);
-  const cat1 = randomCategory();
+  const [cat1, cat2] = distinctCategories(2);
   const { toy: toy1 } = randomToy(cat1);
-  let cat2 = randomCategory();
-  // Ensure different categories for the two halves (otherwise it's just a full tile)
-  while (cat2 === cat1) cat2 = randomCategory();
   const { toy: toy2 } = randomToy(cat2);
   const blocks: TileBlock[] = [
     { cells: split[0], category: cat1, toy: toy1 },
@@ -73,14 +76,12 @@ function generateTwoHalvesTile(): Tile {
   return { id: nextTileId(), layout: TileLayout.TwoHalves, blocks, isStarter: false };
 }
 
-/** Generate a tile with half + two quarters */
+/** Generate a tile with half + two quarters (all 3 blocks different colors) */
 function generateHalfTwoQuartersTile(): Tile {
   const split = pickRandom(HALF_QUARTER_SPLITS);
-  const catHalf = randomCategory();
+  const [catHalf, catQ1, catQ2] = distinctCategories(3);
   const { toy: toyHalf } = randomToy(catHalf);
-  const catQ1 = randomCategory();
   const { toy: toyQ1 } = randomToy(catQ1);
-  const catQ2 = randomCategory();
   const { toy: toyQ2 } = randomToy(catQ2);
   const blocks: TileBlock[] = [
     { cells: split.half, category: catHalf, toy: toyHalf },
@@ -90,21 +91,18 @@ function generateHalfTwoQuartersTile(): Tile {
   return { id: nextTileId(), layout: TileLayout.HalfAndTwoQuarters, blocks, isStarter: false };
 }
 
-/** Generate a tile with four quarters */
+/** Generate a tile with four quarters (all 4 blocks different colors) */
 function generateFourQuartersTile(): Tile {
-  const blocks: TileBlock[] = [0, 1, 2, 3].map(cellIdx => {
-    const cat = randomCategory();
-    const { toy } = randomToy(cat);
-    return { cells: [cellIdx], category: cat, toy };
+  const cats = shuffle(Object.values(ToyCategory) as ToyCategory[]);
+  const blocks: TileBlock[] = [0, 1, 2, 3].map((cellIdx, i) => {
+    const { toy } = randomToy(cats[i]);
+    return { cells: [cellIdx], category: cats[i], toy };
   });
   return { id: nextTileId(), layout: TileLayout.FourQuarters, blocks, isStarter: false };
 }
 
-/** Generate a starter cash register tile with a specific layout */
+/** Generate a starter cash register tile */
 function generateStarterTile(): Tile {
-  // Starter tiles can have various layouts with register blocks
-  // The register block connects regions but doesn't earn coins itself
-  // For simplicity, starter tiles are full register tiles
   const blocks: TileBlock[] = [
     { cells: [0, 1, 2, 3], category: null, toy: 'register' },
   ];
@@ -164,8 +162,8 @@ export function makeTile(
 
 /**
  * Generate scripted first-market tiles for the tutorial.
- * Designed so that placing tile 0 (full bakery/red) at (1,2) next to register
- * gives 1 point, then subsequent tiles offer satisfying combos.
+ * Tile 0 (full bakery/red) → place at (1,2) → score 0 (single tile).
+ * After removal, tile 2 (bakery/pies) becomes index 1 → place at (0,2) → score 2000 (2 bakery tiles).
  */
 export function generateTutorialMarket(): Tile[] {
   return [
@@ -198,12 +196,10 @@ export function generateTutorialMarket(): Tile[] {
  */
 export function generateTutorialDeck(): Tile[] {
   const scripted: Tile[] = [
-    // Card that will be drawn after first placement — bakery half for combo opportunity
     makeTile(TileLayout.TwoHalves, [
       { cells: [0, 1], category: ToyCategory.Bakery, toy: 'pancake' },
       { cells: [2, 3], category: ToyCategory.IceCream, toy: 'dango' },
     ]),
-    // More interesting tiles for early game
     makeTile(TileLayout.HalfAndTwoQuarters, [
       { cells: [0, 1], category: ToyCategory.Candy, toy: 'candy' },
       { cells: [2], category: ToyCategory.Bakery, toy: 'waffle' },
@@ -213,7 +209,6 @@ export function generateTutorialDeck(): Tile[] {
       { cells: [0, 1, 2, 3], category: ToyCategory.IceCream, toy: 'shaved_ice' },
     ]),
   ];
-  // Fill the rest randomly
   const random: Tile[] = [];
   for (let i = 0; i < 61; i++) {
     random.push(pickWeightedGenerator()());

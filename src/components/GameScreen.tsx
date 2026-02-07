@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { GameState, GridPos } from '../game/types';
 import { TurnStep, GamePhase } from '../game/types';
 import type { TutorialAction, TutorialStep } from './Tutorial';
@@ -9,10 +9,8 @@ import { createSinglePlayerGame, placeTile, endTurn } from '../game/state';
 import { calculateFinalScore, determineMajorityAwards } from '../game/scoring';
 
 interface GameScreenProps {
-  /** Current tutorial step (null = tutorial done) */
   tutorialStep: TutorialStep | null;
   onTutorialAction: (action: TutorialAction) => void;
-  /** Provide an initial game state (for tutorial scripted game) */
   initialState?: GameState;
 }
 
@@ -22,25 +20,36 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
   );
   const [selectedMarketIndex, setSelectedMarketIndex] = useState<number | null>(null);
   const [message, setMessage] = useState<string>('🍬 Выбери карточку снизу');
+  const [showEndOverlay, setShowEndOverlay] = useState(false);
+  const [animatedScore, setAnimatedScore] = useState(0);
+  const animFrameRef = useRef(0);
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const isGameOver = gameState.phase === GamePhase.Ended;
+  const inTutorial = tutorialStep !== null;
 
-  // Derived: selected tile from market (tile stays in market until placed)
   const selectedTile = selectedMarketIndex !== null ? gameState.market[selectedMarketIndex] ?? null : null;
-
-  // Can place when a tile is selected and we're in PickTile step
   const canPlace = selectedMarketIndex !== null && gameState.turnStep === TurnStep.PickTile && !isGameOver;
+
+  // Auto-endTurn during tutorial when ScoreShown
+  useEffect(() => {
+    if (inTutorial && gameState.turnStep === TurnStep.ScoreShown) {
+      const timer = setTimeout(() => {
+        const newState = endTurn(gameState);
+        setGameState(newState);
+        setMessage('🍬 Выбери карточку снизу');
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [inTutorial, gameState]);
 
   const handleSelectMarketTile = useCallback((index: number) => {
     if (gameState.turnStep !== TurnStep.PickTile || isGameOver) return;
 
     if (selectedMarketIndex === index) {
-      // Deselect
       setSelectedMarketIndex(null);
       setMessage('🍬 Выбери карточку снизу');
     } else {
-      // Select (or switch)
       setSelectedMarketIndex(index);
       setMessage('👆 Поставь на подсвеченное место');
       onTutorialAction('pick_tile');
@@ -66,9 +75,9 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     setSelectedMarketIndex(null);
 
     if (result.score > 0) {
-      setMessage(`+${result.score} 🪙`);
+      setMessage(`+${result.score} 💵`);
     } else {
-      setMessage('😐 0 очков');
+      setMessage('0 💵');
     }
     onTutorialAction('place_tile');
   }, [gameState, selectedMarketIndex, onTutorialAction]);
@@ -83,19 +92,40 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
         ...p,
         awards: [...p.awards, ...(majorityAwards.get(p.id) ?? [])],
       }));
-      setGameState({ ...newState, players: updatedPlayers });
+      const finalState = { ...newState, players: updatedPlayers };
+      setGameState(finalState);
       const finalScore = calculateFinalScore(updatedPlayers[0]);
-      setMessage(`🏆 Итого: ${finalScore} монет!`);
+      setMessage(`🏆 Итого: ${finalScore} 💵`);
+      setShowEndOverlay(true);
+      animateScoreCounter(finalScore);
     } else {
       setMessage('🍬 Выбери карточку снизу');
     }
-    onTutorialAction('end_turn');
+    onTutorialAction('end_turn' as TutorialAction);
   }, [gameState, onTutorialAction]);
+
+  const animateScoreCounter = (target: number) => {
+    cancelAnimationFrame(animFrameRef.current);
+    const duration = 1500;
+    const start = performance.now();
+    const step = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - (1 - progress) * (1 - progress);
+      setAnimatedScore(Math.round(eased * target));
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(step);
+      }
+    };
+    animFrameRef.current = requestAnimationFrame(step);
+  };
 
   const handleNewGame = useCallback(() => {
     setGameState(createSinglePlayerGame());
     setSelectedMarketIndex(null);
     setMessage('🍬 Выбери карточку снизу');
+    setShowEndOverlay(false);
+    setAnimatedScore(0);
   }, []);
 
   const tutorialTarget = tutorialStep?.target ?? null;
@@ -122,16 +152,16 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
           />
         </div>
 
-        {/* Action buttons */}
+        {/* Action buttons — only show "Далее" when NOT in tutorial */}
         <div style={{ marginTop: 12, display: 'flex', gap: 8, minHeight: 48 }}>
-          {gameState.turnStep === TurnStep.ScoreShown && !isGameOver && (
+          {gameState.turnStep === TurnStep.ScoreShown && !isGameOver && !inTutorial && (
             <button onClick={handleEndTurn} style={btnStyle('#4CAF50')}>
-              Далее ➡️
+              Далее
             </button>
           )}
-          {isGameOver && (
+          {isGameOver && !showEndOverlay && (
             <button onClick={handleNewGame} style={btnStyle('#2196F3')}>
-              🔄 Новая игра
+              Новая игра
             </button>
           )}
         </div>
@@ -158,6 +188,9 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
           highlightIndex={tutorialStep?.marketIndex}
         />
       </div>
+
+      {/* End-game overlay with confetti + score counter */}
+      {showEndOverlay && <EndGameOverlay score={animatedScore} onNewGame={handleNewGame} />}
     </div>
   );
 }
@@ -174,4 +207,115 @@ function btnStyle(bg: string): React.CSSProperties {
     cursor: 'pointer',
     boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
   };
+}
+
+/* ---- End-game overlay with confetti ---- */
+
+const CONFETTI_CSS = `
+@keyframes confetti-fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+@keyframes score-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+`;
+
+let confettiCssInjected = false;
+function injectConfettiCSS() {
+  if (confettiCssInjected) return;
+  confettiCssInjected = true;
+  const style = document.createElement('style');
+  style.textContent = CONFETTI_CSS;
+  document.head.appendChild(style);
+}
+
+const CONFETTI_COLORS = ['#E85D5D', '#5BC0EB', '#C882D6', '#7BC67E', '#F5A623', '#FFD700'];
+
+function EndGameOverlay({ score, onNewGame }: { score: number; onNewGame: () => void }) {
+  injectConfettiCSS();
+
+  const confettiPieces = useRef(
+    Array.from({ length: 60 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 2,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      size: 6 + Math.random() * 8,
+    }))
+  );
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        zIndex: 2000,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Confetti */}
+      {confettiPieces.current.map(p => (
+        <div
+          key={p.id}
+          style={{
+            position: 'absolute',
+            left: `${p.left}%`,
+            top: 0,
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            borderRadius: p.id % 3 === 0 ? '50%' : 2,
+            animation: `confetti-fall ${p.duration}s ${p.delay}s ease-in forwards`,
+            opacity: 0,
+            zIndex: 2001,
+          }}
+        />
+      ))}
+
+      {/* Score card */}
+      <div
+        style={{
+          backgroundColor: '#fff',
+          borderRadius: 24,
+          padding: '32px 48px',
+          textAlign: 'center',
+          boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
+          zIndex: 2002,
+          animation: 'score-pop 0.6s ease-out forwards',
+        }}
+      >
+        <div style={{ fontSize: 48, marginBottom: 8 }}>🏆</div>
+        <div style={{ fontSize: 20, color: '#888', fontWeight: 600, marginBottom: 8 }}>Итого</div>
+        <div style={{ fontSize: 52, fontWeight: 900, color: '#333', marginBottom: 4 }}>
+          {score}
+        </div>
+        <div style={{ fontSize: 28, marginBottom: 20 }}>💵</div>
+        <button
+          onClick={onNewGame}
+          style={{
+            padding: '14px 36px',
+            fontSize: 20,
+            fontWeight: 700,
+            backgroundColor: '#4CAF50',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 14,
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(76,175,80,0.4)',
+          }}
+        >
+          Новая игра
+        </button>
+      </div>
+    </div>
+  );
 }

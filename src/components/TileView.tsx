@@ -26,6 +26,11 @@ function darken(hex: string, amount: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
+function formatScore(n: number): string {
+  if (n >= 1000) return `+${(n / 1000).toFixed(0)}K`;
+  return `+${n}`;
+}
+
 const GAP = 3;
 
 export function TileView({
@@ -176,18 +181,18 @@ export function TileView({
             backgroundColor: 'rgba(0,0,0,0.75)',
             color: '#FFD700',
             borderRadius: '50%',
-            width: 42,
-            height: 42,
+            width: 48,
+            height: 48,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: 'bold',
             zIndex: 10,
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
           }}
         >
-          +{scorePreview}
+          {formatScore(scorePreview)}
         </div>
       )}
     </div>

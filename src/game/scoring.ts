@@ -38,9 +38,6 @@ export function getToyAtCell(board: (Tile | null)[][], cellPos: CellPos): string
 /**
  * Find all cells in a connected region of the same category starting from a cell.
  * Uses BFS. Register (null category) connects regions but we track it separately.
- *
- * For scoring: when placing a tile, we check if new cells connect to existing
- * regions of the same color. Register cells act as connectors.
  */
 export function findConnectedRegion(
   board: (Tile | null)[][],
@@ -97,24 +94,23 @@ export function findConnectedRegion(
 /**
  * Calculate score earned by placing a tile at a grid position.
  * Rules:
- * - Score = number of distinct TILES with matching color in the connected region.
- * - A region must span at least 2 tiles (or touch register on another tile) to score.
+ * - Find connected regions of same color that include cells of the new tile.
+ * - Count distinct TILES (not cells) in each region.
+ * - A region must span at least 2 tiles to score.
+ * - Score per region = tileCount × 1000.
  * - Register connects regions but doesn't count as a scoring tile.
- * - We only score ONCE per connected region even if multiple blocks connect to it.
- *
- * Returns the breakdown of scores per region for display, and total.
  */
 export function calculatePlacementScore(
   board: (Tile | null)[][],
   tile: Tile,
   pos: GridPos
-): { total: number; regionScores: { category: ToyCategory; cells: number }[] } {
+): { total: number; regionScores: { category: ToyCategory; tiles: number }[] } {
   // Temporarily place the tile
   const tempBoard = board.map(row => [...row]);
   tempBoard[pos.row][pos.col] = tile;
 
   const scored = new Set<string>();
-  const regionScores: { category: ToyCategory; cells: number }[] = [];
+  const regionScores: { category: ToyCategory; tiles: number }[] = [];
   let total = 0;
 
   for (const block of tile.blocks) {
@@ -126,13 +122,6 @@ export function calculatePlacementScore(
       const cellKey = `${cellRow},${cellCol}`;
       if (scored.has(cellKey)) continue;
 
-      // Check if this cell connects to an existing region (touching cells outside the new tile)
-      const hasExternalConnection = checkExternalConnection(
-        tempBoard, { row: cellRow, col: cellCol }, block.category, pos
-      );
-
-      if (!hasExternalConnection) continue;
-
       // Find the full connected region
       const region = findConnectedRegion(tempBoard, { row: cellRow, col: cellCol }, block.category);
 
@@ -141,14 +130,16 @@ export function calculatePlacementScore(
         scored.add(`${tc.row},${tc.col}`);
       }
 
-      // Count distinct tiles in the region (score per tile, not per cell)
+      // Count distinct tiles in the region
       const tileKeys = new Set<string>();
       for (const tc of region.toyCells) {
         tileKeys.add(`${Math.floor(tc.row / 2)},${Math.floor(tc.col / 2)}`);
       }
-      const score = tileKeys.size;
-      if (score > 0) {
-        regionScores.push({ category: block.category, cells: score });
+
+      // Only score if 2+ tiles in the region
+      if (tileKeys.size >= 2) {
+        const score = tileKeys.size * 1000;
+        regionScores.push({ category: block.category, tiles: tileKeys.size });
         total += score;
       }
     }
@@ -158,48 +149,13 @@ export function calculatePlacementScore(
 }
 
 /**
- * Check if a cell on the newly placed tile connects to an existing
- * region of the same color that includes cells outside the new tile.
- */
-function checkExternalConnection(
-  board: (Tile | null)[][],
-  cellPos: CellPos,
-  category: ToyCategory,
-  newTilePos: GridPos
-): boolean {
-  const region = findConnectedRegion(board, cellPos, category);
-  // Check if any cell in the region is outside the new tile
-  for (const tc of region.toyCells) {
-    const tileRow = Math.floor(tc.row / 2);
-    const tileCol = Math.floor(tc.col / 2);
-    if (tileRow !== newTilePos.row || tileCol !== newTilePos.col) {
-      return true;
-    }
-  }
-  // Also check if region touches register that's outside the new tile
-  for (const rc of region.registerCells) {
-    const tileRow = Math.floor(rc.row / 2);
-    const tileCol = Math.floor(rc.col / 2);
-    if (tileRow !== newTilePos.row || tileCol !== newTilePos.col) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Get valid placement positions for a tile on a player's board.
- * Rules:
- * - Must be within the 4×4 grid
- * - Must be empty
- * - Must touch at least one existing tile (share at least one side)
  */
 export function getValidPlacements(board: (Tile | null)[][]): GridPos[] {
   const positions: GridPos[] = [];
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 4; c++) {
-      if (board[r][c] !== null) continue; // already occupied
-      // Check if adjacent to at least one existing tile
+      if (board[r][c] !== null) continue;
       const neighbors: GridPos[] = [
         { row: r - 1, col: c },
         { row: r + 1, col: c },
@@ -248,7 +204,6 @@ export function countToysByCategory(player: Player, category: ToyCategory): Map<
       if (!tile) continue;
       for (const block of tile.blocks) {
         if (block.category === category) {
-          // Count each cell individually (a block spanning 2 cells = 2 toys)
           const count = block.cells.length;
           counts.set(block.toy, (counts.get(block.toy) ?? 0) + count);
         }
@@ -291,12 +246,11 @@ export function determineMajorityAwards(players: Player[]): Map<string, Award[]>
     if (maxCount === 0) continue;
 
     const winners = playerMaxes.filter(pm => pm.count === maxCount);
-    // All winners with max get the award
     for (const w of winners) {
       awards.get(w.player.id)!.push({
         type: AwardType.Majority,
         category,
-        value: 5,
+        value: 5000,
       });
     }
   }
@@ -305,9 +259,10 @@ export function determineMajorityAwards(players: Player[]): Map<string, Award[]>
 
 /**
  * Calculate total final score for a player.
+ * Score = coins + award bonuses.
  */
 export function calculateFinalScore(player: Player): number {
-  let score = player.coins + player.moneyTokens * 10;
+  let score = player.coins;
   for (const award of player.awards) {
     score += award.value;
   }
