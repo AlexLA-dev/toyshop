@@ -1,68 +1,96 @@
 import type { Player, Award } from '../game/types';
-import { CATEGORY_COLORS, CATEGORY_NAMES_RU, AwardType } from '../game/types';
+import { CATEGORY_COLORS, CATEGORY_NAMES_RU } from '../game/types';
 
-interface ScorePanelProps {
+interface ScoreBarProps {
   player: Player;
   deckRemaining: number;
+  message: string;
 }
 
-export function ScorePanel({ player, deckRemaining }: ScorePanelProps) {
-  const totalScore = player.coins + player.moneyTokens * 10 + player.awards.length * 5;
+export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
+  const totalCoins = player.coins + player.moneyTokens * 10;
+  const awardBonus = player.awards.length * 5;
   const filledSlots = player.board.flat().filter(t => t !== null).length;
-  const tilesPlaced = filledSlots - 1; // minus starter
+  const tilesPlaced = filledSlots - 1;
+  const progress = tilesPlaced / 15;
 
   return (
     <div
-      className="score-panel"
       style={{
-        padding: 16,
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
         backgroundColor: '#fff',
-        borderRadius: 12,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        minWidth: 200,
+        borderBottom: '1px solid #eee',
+        padding: '8px 16px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
       }}
     >
-      <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>{player.name}</h3>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Монеты:</span>
-          <strong>{player.coins + player.moneyTokens * 10}</strong>
+      {/* Top row: stats */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        {/* Score */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <StatChip icon="\ud83e\ude99" value={totalCoins} label="\u043c\u043e\u043d\u0435\u0442" />
+          {player.awards.length > 0 && (
+            <StatChip icon="\ud83c\udfc6" value={`+${awardBonus}`} label="\u043d\u0430\u0433\u0440\u0430\u0434\u044b" />
+          )}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Награды:</span>
-          <strong>{player.awards.length} ({player.awards.length * 5} очков)</strong>
-        </div>
-
-        <div
-          style={{
-            borderTop: '1px solid #eee',
-            paddingTop: 8,
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 18,
-            fontWeight: 'bold',
-          }}
-        >
-          <span>Итого:</span>
-          <span style={{ color: '#4CAF50' }}>{totalScore}</span>
-        </div>
-
-        {player.awards.length > 0 && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Награды:</div>
-            {player.awards.map((award, i) => (
-              <AwardBadge key={i} award={award} />
-            ))}
+        {/* Deck + progress */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 12, color: '#999' }}>
+            \ud83c\udccf {deckRemaining}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color: '#aaa' }}>{tilesPlaced}/15</span>
+            <div style={{
+              width: 60,
+              height: 6,
+              backgroundColor: '#eee',
+              borderRadius: 3,
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${progress * 100}%`,
+                height: '100%',
+                backgroundColor: '#4CAF50',
+                borderRadius: 3,
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
           </div>
-        )}
-
-        <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-          <div>Тайлов: {tilesPlaced}/15</div>
-          <div>В колоде: {deckRemaining}</div>
         </div>
       </div>
+
+      {/* Awards row */}
+      {player.awards.length > 0 && (
+        <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+          {player.awards.map((award, i) => (
+            <AwardBadge key={i} award={award} />
+          ))}
+        </div>
+      )}
+
+      {/* Message */}
+      <div style={{
+        textAlign: 'center',
+        fontSize: 13,
+        color: '#666',
+        marginTop: 4,
+        minHeight: 18,
+      }}>
+        {message}
+      </div>
+    </div>
+  );
+}
+
+function StatChip({ icon, value, label }: { icon: string; value: number | string; label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ fontSize: 16 }}>{icon}</span>
+      <span style={{ fontSize: 18, fontWeight: 700, color: '#333' }}>{value}</span>
+      <span style={{ fontSize: 11, color: '#999' }}>{label}</span>
     </div>
   );
 }
@@ -70,26 +98,21 @@ export function ScorePanel({ player, deckRemaining }: ScorePanelProps) {
 function AwardBadge({ award }: { award: Award }) {
   const color = CATEGORY_COLORS[award.category];
   const catName = CATEGORY_NAMES_RU[award.category];
-  const typeName = award.type === AwardType.Diversity ? 'Разнообразие' : 'Большинство';
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 4,
-        padding: '2px 8px',
-        borderRadius: 12,
+        gap: 3,
+        padding: '1px 8px',
+        borderRadius: 10,
         backgroundColor: color,
         color: '#fff',
         fontSize: 11,
         fontWeight: 600,
-        marginRight: 4,
-        marginBottom: 4,
       }}
     >
-      <span>+5</span>
-      <span>{catName}</span>
-      <span>({typeName})</span>
+      +5 {catName}
     </div>
   );
 }

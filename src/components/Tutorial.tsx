@@ -1,163 +1,137 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-interface TutorialProps {
-  onComplete: () => void;
-}
+/**
+ * Interactive onboarding: overlays appear step-by-step on top of the real game,
+ * highlighting specific areas and guiding the player through their first moves.
+ * No wall-of-text popups — each step is a small tooltip near the relevant element.
+ */
 
-const STEPS = [
-  {
-    title: 'Добро пожаловать!',
-    text: 'Вы — владелец магазина игрушек. Расставляйте товары так, чтобы одинаковые цвета соединялись и приносили больше монет.',
-  },
-  {
-    title: 'Витрина',
-    text: 'В каждый ход берите одну из 4 карточек с витрины. Можно нажать на карточку или перетащить её на доску.',
-  },
-  {
-    title: 'Тайлы',
-    text: 'Каждая карточка — это квадрат, разделённый на цветные блоки. Блоки бывают разного размера: весь тайл, половина, или четвертинка. Цвет блока = тип игрушки.',
-  },
-  {
-    title: 'Цвета игрушек',
-    text: 'Голубой — плюшевые, фиолетовый — куклы, красный — машинки, зелёный — спорт, оранжевый — касса.',
-  },
-  {
-    title: 'Размещение',
-    text: 'Карточку можно положить только рядом с уже лежащей (сбоку). Подсвеченные места — допустимые позиции. При наведении вы увидите предварительный счёт.',
-  },
-  {
-    title: 'Подсчёт очков',
-    text: 'Когда новый блок касается блока того же цвета — вы получаете монеты за все игрушки в соединённой области. Касса соединяет, но сама монет не приносит.',
-  },
-  {
-    title: 'Награды',
-    text: 'Соберите 5 разных игрушек одного типа — получите награду +5 монет. В конце игры сравните, у кого больше одинаковых игрушек одного типа.',
-  },
-  {
-    title: 'Цель',
-    text: 'Заполните доску 4×4 карточками. Побеждает тот, у кого больше всего монет!',
-  },
+export const TUTORIAL_STEPS = [
+  { id: 'welcome', target: 'board', position: 'center' as const, text: '\ud83c\udf6c \u0414\u043e\u0431\u0440\u043e \u043f\u043e\u0436\u0430\u043b\u043e\u0432\u0430\u0442\u044c \u0432 \u041c\u0430\u0433\u0430\u0437\u0438\u043d \u0421\u043b\u0430\u0434\u043e\u0441\u0442\u0435\u0439!', sub: '\u0421\u043e\u0431\u0438\u0440\u0430\u0439 \u0441\u043b\u0430\u0434\u043e\u0441\u0442\u0438 \u043e\u0434\u043d\u043e\u0433\u043e \u0446\u0432\u0435\u0442\u0430 \u0432\u043c\u0435\u0441\u0442\u0435 \u2014 \u0437\u0430\u0440\u0430\u0431\u0430\u0442\u044b\u0432\u0430\u0439 \u043c\u043e\u043d\u0435\u0442\u044b!' },
+  { id: 'register', target: 'board', position: 'center' as const, text: '\ud83c\udfea \u042d\u0442\u043e \u0442\u0432\u043e\u044f \u043a\u0430\u0441\u0441\u0430', sub: '\u041e\u043d\u0430 \u0441\u043e\u0435\u0434\u0438\u043d\u044f\u0435\u0442 \u043b\u044e\u0431\u044b\u0435 \u0446\u0432\u0435\u0442\u0430, \u043d\u043e \u0441\u0430\u043c\u0430 \u043d\u0435 \u043f\u0440\u0438\u043d\u043e\u0441\u0438\u0442 \u043e\u0447\u043a\u043e\u0432' },
+  { id: 'market', target: 'market', position: 'top' as const, text: '\u2b07\ufe0f \u0412\u044b\u0431\u0435\u0440\u0438 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0443', sub: '\u041d\u0430\u0436\u043c\u0438 \u0438\u043b\u0438 \u043f\u0435\u0440\u0435\u0442\u0430\u0449\u0438 \u043e\u0434\u043d\u0443 \u0438\u0437 4 \u043a\u0430\u0440\u0442\u043e\u0447\u0435\u043a' },
+  { id: 'place', target: 'board', position: 'center' as const, text: '\u2b06\ufe0f \u041f\u043e\u0441\u0442\u0430\u0432\u044c \u043d\u0430 \u0434\u043e\u0441\u043a\u0443', sub: '\u041f\u043e\u0434\u0441\u0432\u0435\u0447\u0435\u043d\u043d\u044b\u0435 \u043c\u0435\u0441\u0442\u0430 = \u043a\u0443\u0434\u0430 \u043c\u043e\u0436\u043d\u043e. \u0427\u0438\u0441\u043b\u043e = \u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043c\u043e\u043d\u0435\u0442 \u043f\u043e\u043b\u0443\u0447\u0438\u0448\u044c' },
+  { id: 'score', target: 'scorebar', position: 'bottom' as const, text: '\ud83e\ude99 \u041e\u0447\u043a\u0438 \u043d\u0430\u043a\u0430\u043f\u043b\u0438\u0432\u0430\u044e\u0442\u0441\u044f \u0437\u0434\u0435\u0441\u044c', sub: '\u0421\u043e\u0435\u0434\u0438\u043d\u044f\u0439 \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u044b\u0435 \u0446\u0432\u0435\u0442\u0430 \u0434\u043b\u044f \u0431\u043e\u043b\u044c\u0448\u0438\u0445 \u043e\u0447\u043a\u043e\u0432' },
+  { id: 'colors', target: 'market', position: 'top' as const, text: '\ud83c\udfa8 4 \u0446\u0432\u0435\u0442\u0430 = 4 \u0442\u0438\u043f\u0430', sub: '\ud83c\udf6d \u041a\u0430\u0440\u0430\u043c\u0435\u043b\u044c \u00b7 \ud83e\uddc1 \u0412\u044b\u043f\u0435\u0447\u043a\u0430 \u00b7 \ud83c\udf6b \u0428\u043e\u043a\u043e\u043b\u0430\u0434 \u00b7 \ud83c\udf66 \u041c\u043e\u0440\u043e\u0436\u0435\u043d\u043e\u0435' },
+  { id: 'award', target: 'board', position: 'center' as const, text: '\ud83c\udfc6 \u0421\u043e\u0431\u0435\u0440\u0438 5 \u0440\u0430\u0437\u043d\u044b\u0445 = \u043d\u0430\u0433\u0440\u0430\u0434\u0430', sub: '5 \u0440\u0430\u0437\u043d\u044b\u0445 \u0441\u043b\u0430\u0434\u043e\u0441\u0442\u0435\u0439 \u043e\u0434\u043d\u043e\u0433\u043e \u0446\u0432\u0435\u0442\u0430 = +5 \u043c\u043e\u043d\u0435\u0442' },
+  { id: 'go', target: 'board', position: 'center' as const, text: '\ud83d\ude80 \u0417\u0430\u043f\u043e\u043b\u043d\u0438 \u0434\u043e\u0441\u043a\u0443 4\u00d74!', sub: '\u0423\u0434\u0430\u0447\u0438!' },
 ];
 
-export function Tutorial({ onComplete }: TutorialProps) {
-  const [step, setStep] = useState(0);
-  const current = STEPS[step];
-  const isLast = step === STEPS.length - 1;
+interface TutorialOverlayProps {
+  step: number;
+  onNext: () => void;
+  onSkip: () => void;
+}
+
+export function TutorialOverlay({ step, onNext, onSkip }: TutorialOverlayProps) {
+  const current = TUTORIAL_STEPS[step];
+  const isLast = step === TUTORIAL_STEPS.length - 1;
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setVisible(false);
+    const t = setTimeout(() => setVisible(true), 50);
+    return () => clearTimeout(t);
+  }, [step]);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: 16,
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
+    <>
+      {/* Dim overlay — click to advance */}
+      <div
+        onClick={onNext}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.35)',
+          zIndex: 900,
+          cursor: 'pointer',
+        }}
+      />
+
+      {/* Tooltip */}
       <div
         style={{
-          backgroundColor: '#fff',
-          borderRadius: 16,
-          padding: 32,
-          maxWidth: 420,
-          width: '100%',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-          textAlign: 'center',
+          position: 'fixed',
+          top: current.target === 'scorebar' ? 0 : current.target === 'market' ? 'auto' : '40%',
+          bottom: current.target === 'market' ? 100 : 'auto',
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          zIndex: 950,
+          pointerEvents: 'none',
         }}
       >
-        <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
-          {step + 1} / {STEPS.length}
-        </div>
-        <h2 style={{ margin: '0 0 12px', fontSize: 20, color: '#333' }}>
-          {current.title}
-        </h2>
-        <p style={{ margin: '0 0 24px', fontSize: 14, color: '#555', lineHeight: 1.6 }}>
-          {current.text}
-        </p>
+        <div
+          onClick={(e) => { e.stopPropagation(); onNext(); }}
+          style={{
+            pointerEvents: 'auto',
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            padding: '16px 24px',
+            maxWidth: 320,
+            textAlign: 'center',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+            opacity: visible ? 1 : 0,
+            transition: 'opacity 0.3s ease, transform 0.3s ease',
+            transform: visible ? 'translateY(0)' : 'translateY(8px)',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ fontSize: 22, marginBottom: 4 }}>{current.text}</div>
+          {current.sub && (
+            <div style={{ fontSize: 13, color: '#777', lineHeight: 1.4 }}>{current.sub}</div>
+          )}
 
-        {/* Color legend on the colors step */}
-        {step === 3 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
-            {[
-              { color: '#5BC0EB', label: 'Плюшевые' },
-              { color: '#C882D6', label: 'Куклы' },
-              { color: '#E85D5D', label: 'Машинки' },
-              { color: '#7BC67E', label: 'Спорт' },
-              { color: '#F5A623', label: 'Касса' },
-            ].map(({ color, label }) => (
-              <div
-                key={label}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 10px',
-                  borderRadius: 12,
-                  backgroundColor: color,
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
-                {label}
-              </div>
-            ))}
+          <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center' }}>
+            {/* Progress dots */}
+            <div style={{ display: 'flex', gap: 4 }}>
+              {TUTORIAL_STEPS.map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: i === step ? 16 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: i === step ? '#4CAF50' : '#ddd',
+                    transition: 'all 0.2s',
+                  }}
+                />
+              ))}
+            </div>
           </div>
-        )}
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-          {step > 0 && (
+          <div style={{ marginTop: 8, display: 'flex', gap: 12, justifyContent: 'center' }}>
             <button
-              onClick={() => setStep(step - 1)}
+              onClick={(e) => { e.stopPropagation(); onSkip(); }}
               style={{
-                padding: '8px 20px',
-                fontSize: 14,
-                backgroundColor: '#eee',
-                color: '#333',
+                background: 'none',
                 border: 'none',
-                borderRadius: 8,
+                color: '#bbb',
+                fontSize: 12,
                 cursor: 'pointer',
               }}
             >
-              Назад
+              Пропустить
             </button>
-          )}
-          <button
-            onClick={isLast ? onComplete : () => setStep(step + 1)}
-            style={{
-              padding: '8px 20px',
-              fontSize: 14,
-              backgroundColor: isLast ? '#4CAF50' : '#2196F3',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
-          >
-            {isLast ? 'Начать игру!' : 'Далее'}
-          </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onNext(); }}
+              style={{
+                background: isLast ? '#4CAF50' : '#eee',
+                color: isLast ? '#fff' : '#333',
+                border: 'none',
+                borderRadius: 8,
+                padding: '6px 16px',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {isLast ? 'Играть!' : 'Ок'}
+            </button>
+          </div>
         </div>
-
-        <button
-          onClick={onComplete}
-          style={{
-            marginTop: 16,
-            background: 'none',
-            border: 'none',
-            color: '#999',
-            fontSize: 12,
-            cursor: 'pointer',
-            textDecoration: 'underline',
-          }}
-        >
-          Пропустить обучение
-        </button>
       </div>
-    </div>
+    </>
   );
 }
