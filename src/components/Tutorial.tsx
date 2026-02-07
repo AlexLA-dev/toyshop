@@ -2,6 +2,7 @@
  * Action-based tutorial: each step highlights a specific game element.
  * Steps advance when the user performs the required action.
  * Hints always appear at the bottom of the screen.
+ * After scripted steps, 3 free-play turns let the user explore.
  */
 
 import type { GridPos } from '../game/types';
@@ -23,24 +24,27 @@ export interface TutorialStep {
   marketIndex?: number;
   /** Highlight a specific board position */
   boardPos?: GridPos;
-  /** Auto-advance to next turn after placement (skip "Далее" button) */
+  /** Auto-advance to next turn after placement */
   autoEndTurn?: boolean;
+  /** Free-play step: accept any pick/place, no specific target */
+  freePlay?: boolean;
 }
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
+  // --- Scripted steps ---
   {
     id: 'welcome',
     target: 'none',
     action: TutorialAction.Click,
     text: '🍬 Магазин Сладостей!',
-    sub: 'Ставь тайлы на доску. Соединяй одинаковые цвета — зарабатывай 💵!',
+    sub: 'Ставь карточки на доску. Соединяй одинаковые цвета — зарабатывай 💵!',
   },
   {
     id: 'pick1',
     target: 'market',
     action: TutorialAction.PickTile,
-    text: '👇 Выбери красный тайл с пончиком',
-    sub: 'Нажми на него внизу',
+    text: '👇 Выбери красную карточку с пончиком',
+    sub: 'Нажми на неё внизу',
     marketIndex: 0,
   },
   {
@@ -48,7 +52,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     target: 'board',
     action: TutorialAction.PlaceTile,
     text: '👆 Поставь рядом с кассой',
-    sub: 'Пока 0 💵 — нужно 2+ тайла одного цвета рядом!',
+    sub: 'Пока 0 💵 — нужно 2+ карточки одного цвета рядом!',
     boardPos: { row: 1, col: 2 },
     autoEndTurn: true,
   },
@@ -56,7 +60,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: 'pick2',
     target: 'market',
     action: TutorialAction.PickTile,
-    text: '👇 Теперь выбери красно-фиолетовый тайл',
+    text: '👇 Теперь красно-фиолетовую карточку',
     sub: 'Красная часть соединится с пончиком!',
     marketIndex: 1,
   },
@@ -65,7 +69,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     target: 'board',
     action: TutorialAction.PlaceTile,
     text: '👆 Ставь сюда — сверху от пончика',
-    sub: '2 красных тайла рядом = 💵2000!',
+    sub: '2 красных карточки рядом = 💵2000!',
     boardPos: { row: 0, col: 2 },
     autoEndTurn: true,
   },
@@ -74,14 +78,59 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     target: 'none',
     action: TutorialAction.Click,
     text: '🏆 Собирай коллекции!',
-    sub: 'Собери все 4 разных товара одного цвета (🧇🥐🍩🥞) — получи бонус 💵5000!',
+    sub: 'Собери все 4 разных товара одного цвета (🧇🥐🍩🥞) — бонус 💵5000!',
+  },
+  // --- Free-play turns (3 turns × pick+place) ---
+  {
+    id: 'free1_pick',
+    target: 'market',
+    action: TutorialAction.PickTile,
+    text: '🍬 Теперь сам! Выбери карточку',
+    sub: 'Ищи одинаковый цвет с тем, что уже на доске',
+    freePlay: true,
   },
   {
-    id: 'go',
-    target: 'none',
-    action: TutorialAction.Click,
-    text: '🚀 Заполни доску 4×4!',
-    sub: 'Чем больше одноцветных тайлов рядом — тем больше 💵. Удачи!',
+    id: 'free1_place',
+    target: 'board',
+    action: TutorialAction.PlaceTile,
+    text: '👆 Поставь на доску',
+    sub: 'Соединяй одинаковые цвета — чем больше группа, тем больше 💵',
+    autoEndTurn: true,
+    freePlay: true,
+  },
+  {
+    id: 'free2_pick',
+    target: 'market',
+    action: TutorialAction.PickTile,
+    text: '🍬 Продолжай! Выбери карточку',
+    sub: 'Старайся расширять группы одного цвета',
+    freePlay: true,
+  },
+  {
+    id: 'free2_place',
+    target: 'board',
+    action: TutorialAction.PlaceTile,
+    text: '👆 Поставь куда хочешь',
+    sub: 'Несколько карточек одного цвета рядом = больше очков!',
+    autoEndTurn: true,
+    freePlay: true,
+  },
+  {
+    id: 'free3_pick',
+    target: 'market',
+    action: TutorialAction.PickTile,
+    text: '🍬 Отлично! Ещё одну',
+    sub: 'Последний обучающий ход',
+    freePlay: true,
+  },
+  {
+    id: 'free3_place',
+    target: 'board',
+    action: TutorialAction.PlaceTile,
+    text: '👆 Последний обучающий ход!',
+    sub: 'Дальше играй самостоятельно 🚀',
+    autoEndTurn: true,
+    freePlay: true,
   },
 ];
 

@@ -1,10 +1,30 @@
-import type { Player, Award } from '../game/types';
-import { CATEGORY_COLORS, CATEGORY_NAMES_RU } from '../game/types';
+import type { Tile, Player, Award, ToyCategory } from '../game/types';
+import { CATEGORY_COLORS, CATEGORY_NAMES_RU, ToyCategory as TC, TOYS, TOY_EMOJI } from '../game/types';
 
 interface ScoreBarProps {
   player: Player;
   deckRemaining: number;
   message: string;
+}
+
+/** Compute which items are collected per category from the board */
+function getCollectedItems(board: (Tile | null)[][]): Record<ToyCategory, Set<string>> {
+  const collected: Record<string, Set<string>> = {};
+  for (const cat of Object.values(TC)) {
+    collected[cat] = new Set();
+  }
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const tile = board[r]?.[c];
+      if (!tile) continue;
+      for (const block of tile.blocks) {
+        if (block.category !== null) {
+          collected[block.category].add(block.toy);
+        }
+      }
+    }
+  }
+  return collected as Record<ToyCategory, Set<string>>;
 }
 
 export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
@@ -14,6 +34,10 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
   const tilesPlaced = filledSlots - 1;
   const progress = tilesPlaced / 15;
 
+  const collected = getCollectedItems(player.board);
+  const categories = Object.values(TC) as ToyCategory[];
+  const completedCollections = categories.filter(cat => collected[cat].size >= 4).length;
+
   return (
     <div
       style={{
@@ -22,7 +46,7 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
         zIndex: 100,
         backgroundColor: '#fff',
         borderBottom: '1px solid #eee',
-        padding: '10px 16px',
+        padding: '10px 16px 6px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
       }}
     >
@@ -62,9 +86,64 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
         </div>
       </div>
 
+      {/* Collection tracker */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 6,
+        padding: '4px 0',
+      }}>
+        {categories.map(cat => {
+          const items = TOYS[cat];
+          const catCollected = collected[cat];
+          const catColor = CATEGORY_COLORS[cat];
+          const isComplete = catCollected.size >= 4;
+          return (
+            <div
+              key={cat}
+              style={{
+                display: 'flex',
+                gap: 1,
+                padding: '2px 4px',
+                borderRadius: 6,
+                backgroundColor: isComplete ? catColor : 'transparent',
+                border: `1px solid ${isComplete ? catColor : '#e0e0e0'}`,
+                transition: 'all 0.3s ease',
+              }}
+            >
+              {items.map(toy => {
+                const found = catCollected.has(toy);
+                const emoji = TOY_EMOJI[toy] ?? toy;
+                return (
+                  <span
+                    key={toy}
+                    style={{
+                      fontSize: 14,
+                      filter: found ? 'none' : 'grayscale(1) opacity(0.3)',
+                      transition: 'filter 0.3s ease',
+                    }}
+                  >
+                    {emoji}
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })}
+        <span style={{
+          fontSize: 14,
+          fontWeight: 700,
+          color: completedCollections > 0 ? '#4CAF50' : '#ccc',
+        }}>
+          ×{completedCollections}
+        </span>
+      </div>
+
       {/* Awards row */}
       {player.awards.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
           {player.awards.map((award, i) => (
             <AwardBadge key={i} award={award} />
           ))}
@@ -77,7 +156,7 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
         fontSize: 22,
         fontWeight: 700,
         color: '#555',
-        marginTop: 6,
+        marginTop: 4,
         minHeight: 28,
       }}>
         {message}

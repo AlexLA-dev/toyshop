@@ -36,12 +36,14 @@ export const CATEGORY_COLORS: Record<ToyCategory | 'register', string> = {
   register: '#F5A623',                  // orange
 };
 
-/** All category colors as ordered array (for register tile quadrants) */
+/** All category colors as ordered array (for register tile quadrants)
+ * Cell indices: 0=TL, 1=TR, 2=BL, 3=BR
+ * Red (bakery) is on the right side so tutorial placement at (1,2) visually connects */
 export const ALL_CATEGORY_COLORS = [
-  CATEGORY_COLORS[ToyCategory.Bakery],
-  CATEGORY_COLORS[ToyCategory.IceCream],
-  CATEGORY_COLORS[ToyCategory.Pies],
-  CATEGORY_COLORS[ToyCategory.Candy],
+  CATEGORY_COLORS[ToyCategory.IceCream],   // 0=TL: blue
+  CATEGORY_COLORS[ToyCategory.Bakery],     // 1=TR: red
+  CATEGORY_COLORS[ToyCategory.Candy],      // 2=BL: green
+  CATEGORY_COLORS[ToyCategory.Pies],       // 3=BR: purple
 ];
 
 /** Category names */

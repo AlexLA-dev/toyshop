@@ -46,6 +46,12 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
   const handleSelectMarketTile = useCallback((index: number) => {
     if (gameState.turnStep !== TurnStep.PickTile || isGameOver) return;
 
+    // Tutorial: block non-allowed selections
+    if (inTutorial && tutorialStep) {
+      if (tutorialStep.action !== 'pick_tile') return;
+      if (!tutorialStep.freePlay && tutorialStep.marketIndex !== undefined && index !== tutorialStep.marketIndex) return;
+    }
+
     if (selectedMarketIndex === index) {
       setSelectedMarketIndex(null);
       setMessage('🍬 Выбери карточку снизу');
@@ -54,10 +60,17 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
       setMessage('👆 Поставь на подсвеченное место');
       onTutorialAction('pick_tile');
     }
-  }, [gameState.turnStep, isGameOver, selectedMarketIndex, onTutorialAction]);
+  }, [gameState.turnStep, isGameOver, selectedMarketIndex, onTutorialAction, inTutorial, tutorialStep]);
 
   const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
     if (gameState.turnStep !== TurnStep.PickTile || isGameOver) return;
+
+    // Tutorial: block non-allowed drags
+    if (inTutorial && tutorialStep) {
+      if (tutorialStep.action !== 'pick_tile') return;
+      if (!tutorialStep.freePlay && tutorialStep.marketIndex !== undefined && index !== tutorialStep.marketIndex) return;
+    }
+
     setSelectedMarketIndex(index);
     onTutorialAction('pick_tile');
     e.dataTransfer.effectAllowed = 'move';
@@ -66,10 +79,19 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     canvas.height = 1;
     e.dataTransfer.setDragImage(canvas, 0, 0);
     setMessage('👆 Перетащи на доску');
-  }, [gameState.turnStep, isGameOver, onTutorialAction]);
+  }, [gameState.turnStep, isGameOver, onTutorialAction, inTutorial, tutorialStep]);
 
   const handlePlaceTile = useCallback((pos: GridPos) => {
     if (selectedMarketIndex === null || gameState.turnStep !== TurnStep.PickTile) return;
+
+    // Tutorial: block non-allowed placements
+    if (inTutorial && tutorialStep) {
+      if (tutorialStep.action !== 'place_tile') return;
+      if (!tutorialStep.freePlay && tutorialStep.boardPos) {
+        if (pos.row !== tutorialStep.boardPos.row || pos.col !== tutorialStep.boardPos.col) return;
+      }
+    }
+
     const result = placeTile(gameState, selectedMarketIndex, pos);
     setGameState(result.state);
     setSelectedMarketIndex(null);
@@ -80,7 +102,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
       setMessage('0 💵');
     }
     onTutorialAction('place_tile');
-  }, [gameState, selectedMarketIndex, onTutorialAction]);
+  }, [gameState, selectedMarketIndex, onTutorialAction, inTutorial, tutorialStep]);
 
   const handleEndTurn = useCallback(() => {
     const newState = endTurn(gameState);
@@ -133,6 +155,16 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
   const highlightBoard = tutorialTarget === 'board';
   const highlightScorebar = tutorialTarget === 'scorebar';
 
+  // Compute allowed board position for tutorial
+  const tutorialAllowedPos = (inTutorial && tutorialStep?.boardPos && !tutorialStep.freePlay)
+    ? tutorialStep.boardPos
+    : null;
+
+  // Compute tutorial lock for market (only allow specific index)
+  const tutorialMarketLock = (inTutorial && tutorialStep?.marketIndex !== undefined && !tutorialStep?.freePlay)
+    ? tutorialStep.marketIndex
+    : undefined;
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Segoe UI', sans-serif" }}>
       {/* Top score bar */}
@@ -149,10 +181,11 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
             onPlaceTile={handlePlaceTile}
             disabled={!canPlace}
             highlightPos={tutorialStep?.boardPos ?? null}
+            allowedPos={tutorialAllowedPos}
           />
         </div>
 
-        {/* Action buttons — only show "Далее" when NOT in tutorial */}
+        {/* Action buttons — NEVER show during tutorial */}
         <div style={{ marginTop: 12, display: 'flex', gap: 8, minHeight: 48 }}>
           {gameState.turnStep === TurnStep.ScoreShown && !isGameOver && !inTutorial && (
             <button onClick={handleEndTurn} style={btnStyle('#4CAF50')}>
@@ -186,6 +219,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
           onDragStart={handleDragStart}
           disabled={gameState.turnStep === TurnStep.ScoreShown || isGameOver}
           highlightIndex={tutorialStep?.marketIndex}
+          lockedIndex={tutorialMarketLock}
         />
       </div>
 
@@ -262,7 +296,6 @@ function EndGameOverlay({ score, onNewGame }: { score: number; onNewGame: () => 
         overflow: 'hidden',
       }}
     >
-      {/* Confetti */}
       {confettiPieces.current.map(p => (
         <div
           key={p.id}
@@ -281,7 +314,6 @@ function EndGameOverlay({ score, onNewGame }: { score: number; onNewGame: () => 
         />
       ))}
 
-      {/* Score card */}
       <div
         style={{
           backgroundColor: '#fff',

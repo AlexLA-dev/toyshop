@@ -9,14 +9,18 @@ interface MarketProps {
   disabled?: boolean;
   /** Tutorial: highlight a specific tile with glow */
   highlightIndex?: number;
+  /** Tutorial: only this index is interactive (others are dimmed) */
+  lockedIndex?: number;
 }
 
-export function Market({ tiles, selectedIndex, onSelect, onDragStart, disabled, highlightIndex }: MarketProps) {
+export function Market({ tiles, selectedIndex, onSelect, onDragStart, disabled, highlightIndex, lockedIndex }: MarketProps) {
   return (
     <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center' }}>
       {tiles.map((tile, i) => {
         const isSelected = selectedIndex === i;
         const isHighlighted = highlightIndex === i;
+        const isLocked = lockedIndex !== undefined && i !== lockedIndex;
+        const tileDisabled = disabled || isLocked;
         return (
           <div
             key={tile.id}
@@ -24,15 +28,16 @@ export function Market({ tiles, selectedIndex, onSelect, onDragStart, disabled, 
             style={{
               border: isSelected ? '3px solid #4CAF50' : '3px solid transparent',
               borderRadius: 11,
-              transition: 'border-color 0.15s, transform 0.15s',
+              transition: 'border-color 0.15s, transform 0.15s, opacity 0.15s',
               transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+              opacity: isLocked ? 0.35 : 1,
             }}
           >
             <TileView
               tile={tile}
               size={84}
-              onClick={disabled ? undefined : () => onSelect(i)}
-              draggable={!disabled}
+              onClick={tileDisabled ? undefined : () => onSelect(i)}
+              draggable={!tileDisabled}
               onDragStart={(e) => onDragStart(i, e)}
             />
           </div>

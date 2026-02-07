@@ -10,14 +10,22 @@ interface GameBoardProps {
   disabled?: boolean;
   /** Tutorial: highlight a specific board cell with glow */
   highlightPos?: GridPos | null;
+  /** Tutorial: only allow placement at this position (null = allow all valid) */
+  allowedPos?: GridPos | null;
 }
 
-export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highlightPos }: GameBoardProps) {
+export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highlightPos, allowedPos }: GameBoardProps) {
   const [dragOverPos, setDragOverPos] = useState<GridPos | null>(null);
   const [hoverPos, setHoverPos] = useState<GridPos | null>(null);
 
   const validPlacements = selectedTile ? getValidPlacements(board) : [];
   const validSet = new Set(validPlacements.map(p => `${p.row},${p.col}`));
+
+  // When allowedPos is set, only that position is interactive
+  const isAllowed = (r: number, c: number) => {
+    if (!allowedPos) return true;
+    return r === allowedPos.row && c === allowedPos.col;
+  };
 
   const getScorePreview = useCallback(
     (pos: GridPos): number | null => {
@@ -31,7 +39,7 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
 
   const handleDragOver = (e: React.DragEvent, pos: GridPos) => {
     e.preventDefault();
-    if (validSet.has(`${pos.row},${pos.col}`)) {
+    if (validSet.has(`${pos.row},${pos.col}`) && isAllowed(pos.row, pos.col)) {
       e.dataTransfer.dropEffect = 'move';
       setDragOverPos(pos);
     } else {
@@ -46,13 +54,13 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
   const handleDrop = (e: React.DragEvent, pos: GridPos) => {
     e.preventDefault();
     setDragOverPos(null);
-    if (!disabled && validSet.has(`${pos.row},${pos.col}`)) {
+    if (!disabled && validSet.has(`${pos.row},${pos.col}`) && isAllowed(pos.row, pos.col)) {
       onPlaceTile(pos);
     }
   };
 
   const handleCellClick = (pos: GridPos) => {
-    if (!disabled && selectedTile && validSet.has(`${pos.row},${pos.col}`)) {
+    if (!disabled && selectedTile && validSet.has(`${pos.row},${pos.col}`) && isAllowed(pos.row, pos.col)) {
       onPlaceTile(pos);
     }
   };
@@ -77,10 +85,11 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
       {board.map((row, r) =>
         row.map((tile, c) => {
           const isValid = validSet.has(`${r},${c}`);
+          const cellAllowed = isAllowed(r, c);
           const isDragOver = dragOverPos?.row === r && dragOverPos?.col === c;
           const isHovered = hoverPos?.row === r && hoverPos?.col === c;
           const isTutorialHighlight = highlightPos?.row === r && highlightPos?.col === c;
-          const showPreview = isValid && (isDragOver || isHovered) && selectedTile;
+          const showPreview = isValid && cellAllowed && (isDragOver || isHovered) && selectedTile;
           const scorePreview = showPreview ? getScorePreview({ row: r, col: c }) : null;
 
           if (tile) {
@@ -93,18 +102,20 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
             );
           }
 
+          const isInteractive = isValid && cellAllowed;
+
           return (
             <div
               key={`${r}-${c}`}
-              className={`board-cell ${isValid ? 'valid-placement' : ''} ${isDragOver ? 'drag-over' : ''} ${isTutorialHighlight ? 'tutorial-glow-item' : ''}`}
+              className={`board-cell ${isInteractive ? 'valid-placement' : ''} ${isDragOver ? 'drag-over' : ''} ${isTutorialHighlight ? 'tutorial-glow-item' : ''}`}
               style={{
                 width: tileSize,
                 height: tileSize,
                 borderRadius: 6,
-                border: isValid
+                border: isInteractive
                   ? `2px dashed ${isDragOver ? '#4CAF50' : '#aaa'}`
                   : '2px solid transparent',
-                backgroundColor: isValid
+                backgroundColor: isInteractive
                   ? isDragOver
                     ? 'rgba(76, 175, 80, 0.15)'
                     : isHovered
@@ -114,7 +125,7 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: isValid && selectedTile ? 'pointer' : 'default',
+                cursor: isInteractive && selectedTile ? 'pointer' : 'default',
                 transition: 'all 0.15s ease',
                 position: 'relative',
               }}
@@ -122,7 +133,7 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, { row: r, col: c })}
               onClick={() => handleCellClick({ row: r, col: c })}
-              onMouseEnter={() => isValid && setHoverPos({ row: r, col: c })}
+              onMouseEnter={() => isInteractive && setHoverPos({ row: r, col: c })}
               onMouseLeave={() => setHoverPos(null)}
             >
               {showPreview && selectedTile && (
@@ -133,7 +144,7 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
                   scorePreview={scorePreview}
                 />
               )}
-              {isValid && !showPreview && (
+              {isInteractive && !showPreview && (
                 <span style={{ color: '#bbb', fontSize: 24 }}>+</span>
               )}
             </div>
