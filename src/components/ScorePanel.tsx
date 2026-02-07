@@ -22,7 +22,7 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
         zIndex: 100,
         backgroundColor: '#fff',
         borderBottom: '1px solid #eee',
-        padding: '8px 16px',
+        padding: '10px 16px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
       }}
     >
@@ -38,11 +38,11 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
 
         {/* Deck + progress */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 12, color: '#999' }}>
+          <span style={{ fontSize: 16, color: '#999' }}>
             🃏 {deckRemaining}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, color: '#aaa' }}>{tilesPlaced}/15</span>
+            <span style={{ fontSize: 14, color: '#aaa' }}>{tilesPlaced}/15</span>
             <div style={{
               width: 60,
               height: 6,
@@ -74,10 +74,11 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
       {/* Message */}
       <div style={{
         textAlign: 'center',
-        fontSize: 13,
-        color: '#666',
-        marginTop: 4,
-        minHeight: 18,
+        fontSize: 18,
+        fontWeight: 600,
+        color: '#555',
+        marginTop: 6,
+        minHeight: 24,
       }}>
         {message}
       </div>
@@ -87,10 +88,10 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
 
 function StatChip({ icon, value, label }: { icon: string; value: number | string; label: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <span style={{ fontSize: 16 }}>{icon}</span>
-      <span style={{ fontSize: 18, fontWeight: 700, color: '#333' }}>{value}</span>
-      <span style={{ fontSize: 11, color: '#999' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ fontSize: 24 }}>{icon}</span>
+      <span style={{ fontSize: 26, fontWeight: 700, color: '#333' }}>{value}</span>
+      <span style={{ fontSize: 14, color: '#999' }}>{label}</span>
     </div>
   );
 }
@@ -104,11 +105,11 @@ function AwardBadge({ award }: { award: Award }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 3,
-        padding: '1px 8px',
+        padding: '2px 10px',
         borderRadius: 10,
         backgroundColor: color,
         color: '#fff',
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: 600,
       }}
     >

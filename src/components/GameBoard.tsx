@@ -8,9 +8,11 @@ interface GameBoardProps {
   selectedTile: Tile | null;
   onPlaceTile: (pos: GridPos) => void;
   disabled?: boolean;
+  /** Tutorial: highlight a specific board cell with glow */
+  highlightPos?: GridPos | null;
 }
 
-export function GameBoard({ board, selectedTile, onPlaceTile, disabled }: GameBoardProps) {
+export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highlightPos }: GameBoardProps) {
   const [dragOverPos, setDragOverPos] = useState<GridPos | null>(null);
   const [hoverPos, setHoverPos] = useState<GridPos | null>(null);
 
@@ -77,6 +79,7 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled }: GameBo
           const isValid = validSet.has(`${r},${c}`);
           const isDragOver = dragOverPos?.row === r && dragOverPos?.col === c;
           const isHovered = hoverPos?.row === r && hoverPos?.col === c;
+          const isTutorialHighlight = highlightPos?.row === r && highlightPos?.col === c;
           const showPreview = isValid && (isDragOver || isHovered) && selectedTile;
           const scorePreview = showPreview ? getScorePreview({ row: r, col: c }) : null;
 
@@ -93,7 +96,7 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled }: GameBo
           return (
             <div
               key={`${r}-${c}`}
-              className={`board-cell ${isValid ? 'valid-placement' : ''} ${isDragOver ? 'drag-over' : ''}`}
+              className={`board-cell ${isValid ? 'valid-placement' : ''} ${isDragOver ? 'drag-over' : ''} ${isTutorialHighlight ? 'tutorial-glow-item' : ''}`}
               style={{
                 width: tileSize,
                 height: tileSize,

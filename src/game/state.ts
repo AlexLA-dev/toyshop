@@ -1,7 +1,16 @@
-import type { GameState, Player, Tile, GridPos, Award } from './types';
+import type { GameState, Player, GridPos, Award } from './types';
 import { GamePhase, TurnStep, ToyCategory, AwardType } from './types';
-import { generateDeck, generateStarterTiles } from './tiles';
+import { generateDeck, generateStarterTiles, generateTutorialMarket, generateTutorialDeck } from './tiles';
 import { calculatePlacementScore, checkDiversityAward } from './scoring';
+
+function emptyDiversityMap(): Record<ToyCategory, boolean> {
+  return {
+    [ToyCategory.Bakery]: false,
+    [ToyCategory.IceCream]: false,
+    [ToyCategory.Pies]: false,
+    [ToyCategory.Candy]: false,
+  };
+}
 
 /** Create the initial game state for a given number of players */
 export function createGameState(playerCount: number): GameState {
@@ -13,7 +22,6 @@ export function createGameState(playerCount: number): GameState {
     const board: (Tile | null)[][] = Array.from({ length: 4 }, () =>
       Array.from({ length: 4 }, () => null)
     );
-    // Place starter tile in a central position (row 1, col 1 — gives room to expand)
     const starterPos: GridPos = { row: 1, col: 1 };
     board[starterPos.row][starterPos.col] = starters[i];
 
@@ -28,7 +36,6 @@ export function createGameState(playerCount: number): GameState {
     });
   }
 
-  // Draw 4 cards for the market
   const market = deck.splice(0, 4);
 
   return {
@@ -37,49 +44,77 @@ export function createGameState(playerCount: number): GameState {
     currentPlayerIndex: 0,
     deck,
     market,
-    diversityAwardsTaken: {
-      [ToyCategory.Plush]: false,
-      [ToyCategory.Dolls]: false,
-      [ToyCategory.Vehicles]: false,
-      [ToyCategory.Sports]: false,
-    },
+    diversityAwardsTaken: emptyDiversityMap(),
     turnStep: TurnStep.PickTile,
   };
 }
 
-/** Create a single-player game (for MVP/tutorial) */
+// Need Tile type for the board array
+import type { Tile } from './types';
+
+/** Create a single-player game */
 export function createSinglePlayerGame(): GameState {
   return createGameState(1);
 }
 
-/** Pick a tile from the market (Step 1 of turn) */
-export function pickTileFromMarket(state: GameState, marketIndex: number): { state: GameState; tile: Tile } {
-  const tile = state.market[marketIndex];
-  const newMarket = [...state.market];
-  newMarket.splice(marketIndex, 1);
+/** Create a tutorial game with scripted market tiles */
+export function createTutorialGame(): GameState {
+  const deck = generateTutorialDeck();
+  const starters = generateStarterTiles();
+
+  const board: (Tile | null)[][] = Array.from({ length: 4 }, () =>
+    Array.from({ length: 4 }, () => null)
+  );
+  const starterPos: GridPos = { row: 1, col: 1 };
+  board[starterPos.row][starterPos.col] = starters[0];
+
+  const players: Player[] = [{
+    id: 'player_0',
+    name: 'Игрок 1',
+    coins: 0,
+    moneyTokens: 0,
+    awards: [],
+    board,
+    starterPos,
+  }];
+
+  const market = generateTutorialMarket();
 
   return {
-    state: {
-      ...state,
-      market: newMarket,
-      turnStep: TurnStep.PlaceTile,
-    },
-    tile,
+    phase: GamePhase.Playing,
+    players,
+    currentPlayerIndex: 0,
+    deck,
+    market,
+    diversityAwardsTaken: emptyDiversityMap(),
+    turnStep: TurnStep.PickTile,
   };
 }
 
-/** Place a tile on the board (Step 2 of turn) — returns score earned */
+/**
+ * Place a tile from the market onto the board.
+ * Removes tile from market and draws a replacement from deck.
+ * Selection is handled in the UI — this function does the commit.
+ */
 export function placeTile(
   state: GameState,
-  tile: Tile,
+  marketIndex: number,
   pos: GridPos
 ): { state: GameState; score: number; regionScores: { category: ToyCategory; cells: number }[] } {
+  const tile = state.market[marketIndex];
   const player = state.players[state.currentPlayerIndex];
   const board = player.board.map(row => [...row]);
   const scoreResult = calculatePlacementScore(board, tile, pos);
 
-  // Place the tile
+  // Place the tile on the board
   board[pos.row][pos.col] = tile;
+
+  // Remove from market and draw replacement
+  const newMarket = state.market.filter((_, i) => i !== marketIndex);
+  const newDeck = [...state.deck];
+  if (newDeck.length > 0) {
+    newMarket.push(newDeck.shift()!);
+  }
 
   // Update coins
   let coins = player.coins + scoreResult.total;
@@ -117,6 +152,8 @@ export function placeTile(
     state: {
       ...state,
       players: newPlayers,
+      deck: newDeck,
+      market: newMarket,
       diversityAwardsTaken,
       turnStep: TurnStep.ScoreShown,
     },
@@ -125,35 +162,22 @@ export function placeTile(
   };
 }
 
-/** End the current turn: draw a new card for market, advance to next player */
+/** End the current turn: advance to next player (market already refilled on place) */
 export function endTurn(state: GameState): GameState {
-  // Refill market from deck
-  const newMarket = [...state.market];
-  while (newMarket.length < 4 && state.deck.length > 0) {
-    const newDeck = [...state.deck];
-    newMarket.push(newDeck.shift()!);
-    state = { ...state, deck: newDeck };
-  }
-
-  // Check if game is over (all players have 4×4 = 16 tiles, but starter takes 1 slot, so 15 more)
   const currentPlayer = state.players[state.currentPlayerIndex];
   const filledSlots = currentPlayer.board.flat().filter(t => t !== null).length;
 
-  // In single player, check if board is full
   if (filledSlots >= 16) {
     return {
       ...state,
-      market: newMarket,
       phase: GamePhase.Ended,
     };
   }
 
-  // Next player
   const nextPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
 
   return {
     ...state,
-    market: newMarket,
     currentPlayerIndex: nextPlayerIndex,
     turnStep: TurnStep.PickTile,
   };

@@ -59,17 +59,17 @@ describe('getCategoryAtCell', () => {
 
   it('returns category for candy cells', () => {
     const board = boardWithRegister();
-    board[0][1] = fullTile('t1', ToyCategory.Plush, 'lollipop');
-    expect(getCategoryAtCell(board, { row: 0, col: 2 })).toBe(ToyCategory.Plush);
+    board[0][1] = fullTile('t1', ToyCategory.Bakery, 'donut');
+    expect(getCategoryAtCell(board, { row: 0, col: 2 })).toBe(ToyCategory.Bakery);
   });
 
   it('handles two-halves tiles correctly', () => {
     const board = boardWithRegister();
-    board[0][0] = twoHalvesTile('t2', ToyCategory.Plush, 'lollipop', ToyCategory.Vehicles, 'chocolate');
-    expect(getCategoryAtCell(board, { row: 0, col: 0 })).toBe(ToyCategory.Plush);
-    expect(getCategoryAtCell(board, { row: 0, col: 1 })).toBe(ToyCategory.Plush);
-    expect(getCategoryAtCell(board, { row: 1, col: 0 })).toBe(ToyCategory.Vehicles);
-    expect(getCategoryAtCell(board, { row: 1, col: 1 })).toBe(ToyCategory.Vehicles);
+    board[0][0] = twoHalvesTile('t2', ToyCategory.Bakery, 'donut', ToyCategory.Candy, 'chocolate');
+    expect(getCategoryAtCell(board, { row: 0, col: 0 })).toBe(ToyCategory.Bakery);
+    expect(getCategoryAtCell(board, { row: 0, col: 1 })).toBe(ToyCategory.Bakery);
+    expect(getCategoryAtCell(board, { row: 1, col: 0 })).toBe(ToyCategory.Candy);
+    expect(getCategoryAtCell(board, { row: 1, col: 1 })).toBe(ToyCategory.Candy);
   });
 });
 
@@ -87,7 +87,7 @@ describe('getValidPlacements', () => {
 
   it('does not include occupied positions', () => {
     const board = boardWithRegister();
-    board[0][1] = fullTile('t1', ToyCategory.Plush, 'lollipop');
+    board[0][1] = fullTile('t1', ToyCategory.Bakery, 'donut');
     const placements = getValidPlacements(board);
     const posSet = new Set(placements.map(p => `${p.row},${p.col}`));
     expect(posSet.has('1,1')).toBe(false);
@@ -96,7 +96,7 @@ describe('getValidPlacements', () => {
 
   it('expands valid placements when more tiles are placed', () => {
     const board = boardWithRegister();
-    board[0][1] = fullTile('t1', ToyCategory.Plush, 'lollipop');
+    board[0][1] = fullTile('t1', ToyCategory.Bakery, 'donut');
     const placements = getValidPlacements(board);
     const posSet = new Set(placements.map(p => `${p.row},${p.col}`));
     expect(posSet.has('0,0')).toBe(true);
@@ -107,81 +107,79 @@ describe('getValidPlacements', () => {
 describe('calculatePlacementScore', () => {
   it('scores 0 when tile has no matching neighbors', () => {
     const board = boardWithRegister();
-    board[0][1] = fullTile('t1', ToyCategory.Plush, 'lollipop');
-    const vehiclesTile = fullTile('t2', ToyCategory.Vehicles, 'chocolate');
-    const result = calculatePlacementScore(board, vehiclesTile, { row: 0, col: 0 });
+    board[0][1] = fullTile('t1', ToyCategory.Bakery, 'donut');
+    const candyTile = fullTile('t2', ToyCategory.Candy, 'chocolate');
+    const result = calculatePlacementScore(board, candyTile, { row: 0, col: 0 });
     expect(result.total).toBe(0);
   });
 
-  it('scores region size when matching color connects', () => {
+  it('scores by tile count when matching color connects', () => {
     const board = boardWithRegister();
-    board[0][1] = fullTile('t1', ToyCategory.Plush, 'lollipop');
-    const plushTile = fullTile('t2', ToyCategory.Plush, 'cotton_candy');
-    const result = calculatePlacementScore(board, plushTile, { row: 0, col: 0 });
-    expect(result.total).toBe(8);
+    board[0][1] = fullTile('t1', ToyCategory.Bakery, 'donut');
+    const bakeryTile = fullTile('t2', ToyCategory.Bakery, 'croissant');
+    // Two tiles with bakery = score 2 (per-tile scoring)
+    const result = calculatePlacementScore(board, bakeryTile, { row: 0, col: 0 });
+    expect(result.total).toBe(2);
   });
 
-  it('gives minimum 1 when touching register', () => {
+  it('scores 1 when placing next to register (single tile in region)', () => {
     const board = boardWithRegister();
-    const tile = fullTile('t1', ToyCategory.Dolls, 'cupcake');
+    const tile = fullTile('t1', ToyCategory.IceCream, 'soft_serve');
+    // Place next to register: region has 1 tile with ice_cream, register connects externally
     const result = calculatePlacementScore(board, tile, { row: 1, col: 0 });
-    expect(result.total).toBeGreaterThanOrEqual(1);
+    expect(result.total).toBe(1);
   });
 
   it('register connects separate regions of the same color', () => {
     const board = boardWithRegister();
-    board[1][0] = fullTile('t1', ToyCategory.Plush, 'lollipop');
-    const plushTile = fullTile('t2', ToyCategory.Plush, 'cotton_candy');
-    const result = calculatePlacementScore(board, plushTile, { row: 1, col: 2 });
-    expect(result.total).toBe(8);
+    board[1][0] = fullTile('t1', ToyCategory.Bakery, 'donut');
+    const bakeryTile = fullTile('t2', ToyCategory.Bakery, 'croissant');
+    // Two bakery tiles connected through register = 2 tiles
+    const result = calculatePlacementScore(board, bakeryTile, { row: 1, col: 2 });
+    expect(result.total).toBe(2);
+  });
+
+  it('scores 3 when connecting to two existing tiles', () => {
+    const board = boardWithRegister();
+    board[0][1] = fullTile('t1', ToyCategory.Bakery, 'donut');
+    board[1][0] = fullTile('t2', ToyCategory.Bakery, 'croissant');
+    // Place at (0,0): connects to t1 directly, and to t2 directly
+    const bakeryTile = fullTile('t3', ToyCategory.Bakery, 'waffle');
+    const result = calculatePlacementScore(board, bakeryTile, { row: 0, col: 0 });
+    expect(result.total).toBe(3);
   });
 });
 
 describe('checkDiversityAward', () => {
-  it('returns false when fewer than 5 different candies', () => {
+  it('returns false when fewer than 4 different items', () => {
     const board = boardWithRegister();
-    board[0][0] = fullTile('t1', ToyCategory.Plush, 'lollipop');
-    board[0][1] = fullTile('t2', ToyCategory.Plush, 'cotton_candy');
+    board[0][0] = fullTile('t1', ToyCategory.Bakery, 'donut');
+    board[0][1] = fullTile('t2', ToyCategory.Bakery, 'croissant');
     const player: Player = {
       id: 'p1', name: 'Test', coins: 0, moneyTokens: 0, awards: [],
       board, starterPos: { row: 1, col: 1 },
     };
-    expect(checkDiversityAward(player, ToyCategory.Plush)).toBe(false);
+    expect(checkDiversityAward(player, ToyCategory.Bakery)).toBe(false);
   });
 
-  it('returns true when 5 different candies of same category', () => {
+  it('returns true when all 4 different items of same category', () => {
     const board = boardWithRegister();
-    const fiveInTwoTiles: Tile[] = [
-      {
-        id: 'multi1',
-        layout: TileLayout.FourQuarters,
-        blocks: [
-          { cells: [0], category: ToyCategory.Plush, toy: 'lollipop' },
-          { cells: [1], category: ToyCategory.Plush, toy: 'cotton_candy' },
-          { cells: [2], category: ToyCategory.Plush, toy: 'gummy_bear' },
-          { cells: [3], category: ToyCategory.Plush, toy: 'candy_cane' },
-        ],
-        isStarter: false,
-      },
-      {
-        id: 'multi2',
-        layout: TileLayout.FourQuarters,
-        blocks: [
-          { cells: [0], category: ToyCategory.Plush, toy: 'marshmallow' },
-          { cells: [1], category: ToyCategory.Dolls, toy: 'cupcake' },
-          { cells: [2], category: ToyCategory.Vehicles, toy: 'chocolate' },
-          { cells: [3], category: ToyCategory.Sports, toy: 'ice_cream' },
-        ],
-        isStarter: false,
-      },
-    ];
-    board[0][1] = fiveInTwoTiles[0];
-    board[1][0] = fiveInTwoTiles[1];
+    board[0][1] = {
+      id: 'multi1',
+      layout: TileLayout.FourQuarters,
+      blocks: [
+        { cells: [0], category: ToyCategory.Bakery, toy: 'waffle' },
+        { cells: [1], category: ToyCategory.Bakery, toy: 'croissant' },
+        { cells: [2], category: ToyCategory.Bakery, toy: 'donut' },
+        { cells: [3], category: ToyCategory.Bakery, toy: 'pancake' },
+      ],
+      isStarter: false,
+    };
     const player: Player = {
       id: 'p1', name: 'Test', coins: 0, moneyTokens: 0, awards: [],
       board, starterPos: { row: 1, col: 1 },
     };
-    expect(checkDiversityAward(player, ToyCategory.Plush)).toBe(true);
+    expect(checkDiversityAward(player, ToyCategory.Bakery)).toBe(true);
   });
 });
 
@@ -193,8 +191,8 @@ describe('calculateFinalScore', () => {
       coins: 7,
       moneyTokens: 2,
       awards: [
-        { type: AwardType.Diversity, category: ToyCategory.Plush, value: 5 },
-        { type: AwardType.Majority, category: ToyCategory.Dolls, value: 5 },
+        { type: AwardType.Diversity, category: ToyCategory.Bakery, value: 5 },
+        { type: AwardType.Majority, category: ToyCategory.IceCream, value: 5 },
       ],
       board,
       starterPos: { row: 1, col: 1 },

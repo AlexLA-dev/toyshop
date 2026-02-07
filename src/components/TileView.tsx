@@ -114,7 +114,7 @@ export function TileView({
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              fontSize: Math.max(size * 0.35, 24),
+              fontSize: Math.max(size * 0.42, 28),
               lineHeight: 1,
               userSelect: 'none',
               filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))',
@@ -154,7 +154,7 @@ export function TileView({
             >
               <span
                 style={{
-                  fontSize: isQuarter ? Math.max(size * 0.18, 14) : isFull ? Math.max(size * 0.32, 22) : Math.max(size * 0.22, 16),
+                  fontSize: isQuarter ? Math.max(size * 0.26, 18) : isFull ? Math.max(size * 0.42, 28) : Math.max(size * 0.30, 22),
                   lineHeight: 1,
                   userSelect: 'none',
                   filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))',
@@ -176,12 +176,12 @@ export function TileView({
             backgroundColor: 'rgba(0,0,0,0.75)',
             color: '#FFD700',
             borderRadius: '50%',
-            width: 38,
-            height: 38,
+            width: 42,
+            height: 42,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 17,
+            fontSize: 20,
             fontWeight: 'bold',
             zIndex: 10,
             boxShadow: '0 2px 8px rgba(0,0,0,0.3)',

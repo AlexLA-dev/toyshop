@@ -152,3 +152,71 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return result;
 }
+
+/** Create a specific tile (for tutorial / scripted games) */
+export function makeTile(
+  layout: TileLayout,
+  blocks: { cells: number[]; category: ToyCategory | null; toy: string }[],
+  isStarter = false,
+): Tile {
+  return { id: nextTileId(), layout, blocks, isStarter };
+}
+
+/**
+ * Generate scripted first-market tiles for the tutorial.
+ * Designed so that placing tile 0 (full bakery/red) at (1,2) next to register
+ * gives 1 point, then subsequent tiles offer satisfying combos.
+ */
+export function generateTutorialMarket(): Tile[] {
+  return [
+    // 0: Full bakery (red) — the recommended first pick
+    makeTile(TileLayout.Full, [
+      { cells: [0, 1, 2, 3], category: ToyCategory.Bakery, toy: 'donut' },
+    ]),
+    // 1: Two halves — ice cream top / candy bottom
+    makeTile(TileLayout.TwoHalves, [
+      { cells: [0, 1], category: ToyCategory.IceCream, toy: 'soft_serve' },
+      { cells: [2, 3], category: ToyCategory.Candy, toy: 'lollipop' },
+    ]),
+    // 2: Two halves — bakery left / pies right (bakery continues the red chain)
+    makeTile(TileLayout.TwoHalves, [
+      { cells: [0, 2], category: ToyCategory.Bakery, toy: 'croissant' },
+      { cells: [1, 3], category: ToyCategory.Pies, toy: 'cupcake' },
+    ]),
+    // 3: Four quarters — one of each
+    makeTile(TileLayout.FourQuarters, [
+      { cells: [0], category: ToyCategory.Bakery, toy: 'waffle' },
+      { cells: [1], category: ToyCategory.IceCream, toy: 'ice_cream' },
+      { cells: [2], category: ToyCategory.Pies, toy: 'cake' },
+      { cells: [3], category: ToyCategory.Candy, toy: 'chocolate' },
+    ]),
+  ];
+}
+
+/**
+ * Generate a tutorial deck — first few cards are good for learning combos.
+ */
+export function generateTutorialDeck(): Tile[] {
+  const scripted: Tile[] = [
+    // Card that will be drawn after first placement — bakery half for combo opportunity
+    makeTile(TileLayout.TwoHalves, [
+      { cells: [0, 1], category: ToyCategory.Bakery, toy: 'pancake' },
+      { cells: [2, 3], category: ToyCategory.IceCream, toy: 'dango' },
+    ]),
+    // More interesting tiles for early game
+    makeTile(TileLayout.HalfAndTwoQuarters, [
+      { cells: [0, 1], category: ToyCategory.Candy, toy: 'candy' },
+      { cells: [2], category: ToyCategory.Bakery, toy: 'waffle' },
+      { cells: [3], category: ToyCategory.Pies, toy: 'pie' },
+    ]),
+    makeTile(TileLayout.Full, [
+      { cells: [0, 1, 2, 3], category: ToyCategory.IceCream, toy: 'shaved_ice' },
+    ]),
+  ];
+  // Fill the rest randomly
+  const random: Tile[] = [];
+  for (let i = 0; i < 61; i++) {
+    random.push(pickWeightedGenerator()());
+  }
+  return [...scripted, ...shuffle(random)];
+}

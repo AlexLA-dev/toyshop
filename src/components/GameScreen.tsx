@@ -1,59 +1,68 @@
 import { useState, useCallback } from 'react';
-import type { Tile, GridPos } from '../game/types';
+import type { GameState, GridPos } from '../game/types';
 import { TurnStep, GamePhase } from '../game/types';
-import type { TutorialAction } from './Tutorial';
+import type { TutorialAction, TutorialStep } from './Tutorial';
 import { GameBoard } from './GameBoard';
 import { Market } from './Market';
 import { ScoreBar } from './ScorePanel';
-import { createSinglePlayerGame, pickTileFromMarket, placeTile, endTurn } from '../game/state';
+import { createSinglePlayerGame, placeTile, endTurn } from '../game/state';
 import { calculateFinalScore, determineMajorityAwards } from '../game/scoring';
 
 interface GameScreenProps {
-  tutorialTarget: 'market' | 'board' | 'scorebar' | 'none' | null;
+  /** Current tutorial step (null = tutorial done) */
+  tutorialStep: TutorialStep | null;
   onTutorialAction: (action: TutorialAction) => void;
+  /** Provide an initial game state (for tutorial scripted game) */
+  initialState?: GameState;
 }
 
-export function GameScreen({ tutorialTarget, onTutorialAction }: GameScreenProps) {
-  const [gameState, setGameState] = useState(() => createSinglePlayerGame());
-  const [selectedTile, setSelectedTile] = useState<Tile | null>(null);
+export function GameScreen({ tutorialStep, onTutorialAction, initialState }: GameScreenProps) {
+  const [gameState, setGameState] = useState<GameState>(
+    () => initialState ?? createSinglePlayerGame()
+  );
   const [selectedMarketIndex, setSelectedMarketIndex] = useState<number | null>(null);
-  const [message, setMessage] = useState<string>('🍬 Выбери сладость снизу');
+  const [message, setMessage] = useState<string>('🍬 Выбери карточку снизу');
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const isGameOver = gameState.phase === GamePhase.Ended;
 
-  const handleSelectMarketTile = useCallback((index: number) => {
-    if (gameState.turnStep !== TurnStep.PickTile) return;
-    const result = pickTileFromMarket(gameState, index);
-    setGameState(result.state);
-    setSelectedTile(result.tile);
-    setSelectedMarketIndex(index);
-    setMessage('👆 Поставь на подсвеченное место');
-    onTutorialAction('pick_tile');
-  }, [gameState, onTutorialAction]);
+  // Derived: selected tile from market (tile stays in market until placed)
+  const selectedTile = selectedMarketIndex !== null ? gameState.market[selectedMarketIndex] ?? null : null;
 
-  const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
-    if (gameState.turnStep !== TurnStep.PickTile && gameState.turnStep !== TurnStep.PlaceTile) return;
-    if (gameState.turnStep === TurnStep.PickTile) {
-      const result = pickTileFromMarket(gameState, index);
-      setGameState(result.state);
-      setSelectedTile(result.tile);
+  // Can place when a tile is selected and we're in PickTile step
+  const canPlace = selectedMarketIndex !== null && gameState.turnStep === TurnStep.PickTile && !isGameOver;
+
+  const handleSelectMarketTile = useCallback((index: number) => {
+    if (gameState.turnStep !== TurnStep.PickTile || isGameOver) return;
+
+    if (selectedMarketIndex === index) {
+      // Deselect
+      setSelectedMarketIndex(null);
+      setMessage('🍬 Выбери карточку снизу');
+    } else {
+      // Select (or switch)
       setSelectedMarketIndex(index);
+      setMessage('👆 Поставь на подсвеченное место');
       onTutorialAction('pick_tile');
     }
+  }, [gameState.turnStep, isGameOver, selectedMarketIndex, onTutorialAction]);
+
+  const handleDragStart = useCallback((index: number, e: React.DragEvent) => {
+    if (gameState.turnStep !== TurnStep.PickTile || isGameOver) return;
+    setSelectedMarketIndex(index);
+    onTutorialAction('pick_tile');
     e.dataTransfer.effectAllowed = 'move';
     const canvas = document.createElement('canvas');
     canvas.width = 1;
     canvas.height = 1;
     e.dataTransfer.setDragImage(canvas, 0, 0);
     setMessage('👆 Перетащи на доску');
-  }, [gameState, onTutorialAction]);
+  }, [gameState.turnStep, isGameOver, onTutorialAction]);
 
   const handlePlaceTile = useCallback((pos: GridPos) => {
-    if (!selectedTile || gameState.turnStep !== TurnStep.PlaceTile) return;
-    const result = placeTile(gameState, selectedTile, pos);
+    if (selectedMarketIndex === null || gameState.turnStep !== TurnStep.PickTile) return;
+    const result = placeTile(gameState, selectedMarketIndex, pos);
     setGameState(result.state);
-    setSelectedTile(null);
     setSelectedMarketIndex(null);
 
     if (result.score > 0) {
@@ -62,7 +71,7 @@ export function GameScreen({ tutorialTarget, onTutorialAction }: GameScreenProps
       setMessage('😐 0 очков');
     }
     onTutorialAction('place_tile');
-  }, [gameState, selectedTile, onTutorialAction]);
+  }, [gameState, selectedMarketIndex, onTutorialAction]);
 
   const handleEndTurn = useCallback(() => {
     const newState = endTurn(gameState);
@@ -78,18 +87,18 @@ export function GameScreen({ tutorialTarget, onTutorialAction }: GameScreenProps
       const finalScore = calculateFinalScore(updatedPlayers[0]);
       setMessage(`🏆 Итого: ${finalScore} монет!`);
     } else {
-      setMessage('🍬 Выбери сладость снизу');
+      setMessage('🍬 Выбери карточку снизу');
     }
     onTutorialAction('end_turn');
   }, [gameState, onTutorialAction]);
 
   const handleNewGame = useCallback(() => {
     setGameState(createSinglePlayerGame());
-    setSelectedTile(null);
     setSelectedMarketIndex(null);
-    setMessage('🍬 Выбери сладость снизу');
+    setMessage('🍬 Выбери карточку снизу');
   }, []);
 
+  const tutorialTarget = tutorialStep?.target ?? null;
   const highlightMarket = tutorialTarget === 'market';
   const highlightBoard = tutorialTarget === 'board';
   const highlightScorebar = tutorialTarget === 'scorebar';
@@ -108,12 +117,13 @@ export function GameScreen({ tutorialTarget, onTutorialAction }: GameScreenProps
             board={currentPlayer.board}
             selectedTile={selectedTile}
             onPlaceTile={handlePlaceTile}
-            disabled={gameState.turnStep !== TurnStep.PlaceTile || isGameOver}
+            disabled={!canPlace}
+            highlightPos={tutorialStep?.boardPos ?? null}
           />
         </div>
 
         {/* Action buttons */}
-        <div style={{ marginTop: 10, display: 'flex', gap: 8, minHeight: 44 }}>
+        <div style={{ marginTop: 12, display: 'flex', gap: 8, minHeight: 48 }}>
           {gameState.turnStep === TurnStep.ScoreShown && !isGameOver && (
             <button onClick={handleEndTurn} style={btnStyle('#4CAF50')}>
               Далее ➡️
@@ -135,7 +145,7 @@ export function GameScreen({ tutorialTarget, onTutorialAction }: GameScreenProps
           bottom: 0,
           backgroundColor: '#fff',
           borderTop: '1px solid #eee',
-          padding: '8px 12px',
+          padding: '10px 12px',
           boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
         }}
       >
@@ -144,7 +154,8 @@ export function GameScreen({ tutorialTarget, onTutorialAction }: GameScreenProps
           selectedIndex={selectedMarketIndex}
           onSelect={handleSelectMarketTile}
           onDragStart={handleDragStart}
-          disabled={gameState.turnStep !== TurnStep.PickTile || isGameOver}
+          disabled={gameState.turnStep === TurnStep.ScoreShown || isGameOver}
+          highlightIndex={tutorialStep?.marketIndex}
         />
       </div>
     </div>
@@ -153,14 +164,14 @@ export function GameScreen({ tutorialTarget, onTutorialAction }: GameScreenProps
 
 function btnStyle(bg: string): React.CSSProperties {
   return {
-    padding: '10px 24px',
-    fontSize: 15,
-    fontWeight: 600,
+    padding: '12px 28px',
+    fontSize: 18,
+    fontWeight: 700,
     backgroundColor: bg,
     color: '#fff',
     border: 'none',
-    borderRadius: 10,
+    borderRadius: 12,
     cursor: 'pointer',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
   };
 }

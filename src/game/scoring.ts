@@ -97,10 +97,9 @@ export function findConnectedRegion(
 /**
  * Calculate score earned by placing a tile at a grid position.
  * Rules:
- * - For each block on the new tile, check if it connects to an existing region of the same color.
- * - Score = number of toy cells in the entire connected region (including cells on this new tile).
- * - Register connects but doesn't earn coins itself.
- * - Minimum 1 coin if the new tile's block touches the register.
+ * - Score = number of distinct TILES with matching color in the connected region.
+ * - A region must span at least 2 tiles (or touch register on another tile) to score.
+ * - Register connects regions but doesn't count as a scoring tile.
  * - We only score ONCE per connected region even if multiple blocks connect to it.
  *
  * Returns the breakdown of scores per region for display, and total.
@@ -142,7 +141,12 @@ export function calculatePlacementScore(
         scored.add(`${tc.row},${tc.col}`);
       }
 
-      const score = region.toyCells.length;
+      // Count distinct tiles in the region (score per tile, not per cell)
+      const tileKeys = new Set<string>();
+      for (const tc of region.toyCells) {
+        tileKeys.add(`${Math.floor(tc.row / 2)},${Math.floor(tc.col / 2)}`);
+      }
+      const score = tileKeys.size;
       if (score > 0) {
         regionScores.push({ category: block.category, cells: score });
         total += score;
@@ -150,39 +154,7 @@ export function calculatePlacementScore(
     }
   }
 
-  // Check if any block touches register without same-color connection
-  // "minimum 1 coin for touching register"
-  if (total === 0) {
-    for (const block of tile.blocks) {
-      if (block.category === null) continue;
-      for (const cellIdx of block.cells) {
-        const cellRow = pos.row * 2 + Math.floor(cellIdx / 2);
-        const cellCol = pos.col * 2 + (cellIdx % 2);
-        if (touchesRegister(board, { row: cellRow, col: cellCol })) {
-          total = 1;
-          regionScores.push({ category: block.category, cells: 1 });
-          return { total, regionScores };
-        }
-      }
-    }
-  }
-
   return { total, regionScores };
-}
-
-/** Check if a cell touches a register cell on the existing board (before placement) */
-function touchesRegister(board: (Tile | null)[][], cellPos: CellPos): boolean {
-  const neighbors: CellPos[] = [
-    { row: cellPos.row - 1, col: cellPos.col },
-    { row: cellPos.row + 1, col: cellPos.col },
-    { row: cellPos.row, col: cellPos.col - 1 },
-    { row: cellPos.row, col: cellPos.col + 1 },
-  ];
-  for (const n of neighbors) {
-    const cat = getCategoryAtCell(board, n);
-    if (cat === null) return true; // null = register
-  }
-  return false;
 }
 
 /**
@@ -247,7 +219,7 @@ export function getValidPlacements(board: (Tile | null)[][]): GridPos[] {
 
 /**
  * Check if a player has earned a diversity award for a category.
- * Diversity = 5 different toys of the same category on the board.
+ * Diversity = all 4 different items of the same category on the board.
  */
 export function checkDiversityAward(player: Player, category: ToyCategory): boolean {
   const toysOfCategory = new Set<string>();
@@ -262,7 +234,7 @@ export function checkDiversityAward(player: Player, category: ToyCategory): bool
       }
     }
   }
-  return toysOfCategory.size >= 5;
+  return toysOfCategory.size >= 4;
 }
 
 /**

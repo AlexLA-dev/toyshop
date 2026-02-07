@@ -1,10 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { GameScreen } from './components/GameScreen';
 import { TutorialHint, TutorialAction, TUTORIAL_STEPS } from './components/Tutorial';
+import { createTutorialGame } from './game/state';
 
 export default function App() {
   const [tutorialStep, setTutorialStep] = useState(0);
   const [tutorialDone, setTutorialDone] = useState(false);
+
+  // Create a scripted tutorial game (stable across re-renders)
+  const tutorialGameState = useMemo(() => createTutorialGame(), []);
 
   const currentStep = !tutorialDone && tutorialStep < TUTORIAL_STEPS.length
     ? TUTORIAL_STEPS[tutorialStep]
@@ -38,8 +42,9 @@ export default function App() {
   return (
     <>
       <GameScreen
-        tutorialTarget={currentStep?.target ?? null}
+        tutorialStep={currentStep}
         onTutorialAction={handleTutorialAction}
+        initialState={tutorialGameState}
       />
       {currentStep && (
         <TutorialHint step={currentStep} onClickAdvance={handleClickAdvance} />
