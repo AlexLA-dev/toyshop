@@ -1,28 +1,48 @@
 import { useState, useCallback } from 'react';
 import { GameScreen } from './components/GameScreen';
-import { TutorialOverlay, TUTORIAL_STEPS } from './components/Tutorial';
+import { TutorialHint, TutorialAction, TUTORIAL_STEPS } from './components/Tutorial';
 
 export default function App() {
   const [tutorialStep, setTutorialStep] = useState(0);
   const [tutorialDone, setTutorialDone] = useState(false);
 
-  const handleNext = useCallback(() => {
-    if (tutorialStep >= TUTORIAL_STEPS.length - 1) {
-      setTutorialDone(true);
-    } else {
-      setTutorialStep(s => s + 1);
-    }
-  }, [tutorialStep]);
+  const currentStep = !tutorialDone && tutorialStep < TUTORIAL_STEPS.length
+    ? TUTORIAL_STEPS[tutorialStep]
+    : null;
 
-  const handleSkip = useCallback(() => {
-    setTutorialDone(true);
+  const advance = useCallback(() => {
+    setTutorialStep(s => {
+      const next = s + 1;
+      if (next >= TUTORIAL_STEPS.length) {
+        setTutorialDone(true);
+        return s;
+      }
+      return next;
+    });
   }, []);
+
+  const handleTutorialAction = useCallback((action: TutorialAction) => {
+    if (!currentStep) return;
+    if (currentStep.action === action) {
+      advance();
+    }
+  }, [currentStep, advance]);
+
+  const handleClickAdvance = useCallback(() => {
+    if (!currentStep) return;
+    if (currentStep.action === TutorialAction.Click) {
+      advance();
+    }
+  }, [currentStep, advance]);
 
   return (
     <>
-      <GameScreen />
-      {!tutorialDone && (
-        <TutorialOverlay step={tutorialStep} onNext={handleNext} onSkip={handleSkip} />
+      <GameScreen
+        tutorialTarget={currentStep?.target ?? null}
+        onTutorialAction={handleTutorialAction}
+      />
+      {currentStep && (
+        <TutorialHint step={currentStep} onClickAdvance={handleClickAdvance} />
       )}
     </>
   );

@@ -7,7 +7,7 @@ export const ToyCategory = {
 } as const;
 export type ToyCategory = (typeof ToyCategory)[keyof typeof ToyCategory];
 
-/** Items per category — candies */
+/** Items per category */
 export const TOYS: Record<ToyCategory, string[]> = {
   [ToyCategory.Plush]: ['lollipop', 'cotton_candy', 'gummy_bear', 'candy_cane', 'marshmallow'],
   [ToyCategory.Dolls]: ['cupcake', 'donut', 'macaron', 'eclair', 'cookie'],
@@ -17,37 +17,39 @@ export const TOYS: Record<ToyCategory, string[]> = {
 
 /** Emoji for each item */
 export const TOY_EMOJI: Record<string, string> = {
-  lollipop: '\ud83c\udf6d', cotton_candy: '\ud83c\udf6c', gummy_bear: '\ud83d\udc3b', candy_cane: '\ud83e\ude84', marshmallow: '\u2601\ufe0f',
-  cupcake: '\ud83e\uddc1', donut: '\ud83c\udf69', macaron: '\ud83e\ude79', eclair: '\ud83e\udd50', cookie: '\ud83c\udf6a',
-  chocolate: '\ud83c\udf6b', truffle: '\ud83c\udf30', fudge: '\ud83c\udf70', brownie: '\ud83e\udeb5', praline: '\ud83d\udc8e',
-  ice_cream: '\ud83c\udf66', popsicle: '\ud83c\udf67', sundae: '\ud83c\udf68', gelato: '\ud83e\uddca', sorbet: '\ud83c\udf53',
-  register: '\ud83c\udfea',
+  lollipop: '🍭', cotton_candy: '🍬', gummy_bear: '🐻', candy_cane: '🪄', marshmallow: '☁️',
+  cupcake: '🧁', donut: '🍩', macaron: '🪹', eclair: '🥐', cookie: '🍪',
+  chocolate: '🍫', truffle: '🌰', fudge: '🎂', brownie: '🪵', praline: '💎',
+  ice_cream: '🍦', popsicle: '🍧', sundae: '🍨', gelato: '🧊', sorbet: '🍓',
+  register: '🏪',
 };
 
-/** Display names (kept for tooltips) */
-export const TOY_NAMES_RU: Record<string, string> = {
-  lollipop: '\ud83c\udf6d', cotton_candy: '\ud83c\udf6c', gummy_bear: '\ud83d\udc3b', candy_cane: '\ud83e\ude84', marshmallow: '\u2601\ufe0f',
-  cupcake: '\ud83e\uddc1', donut: '\ud83c\udf69', macaron: '\ud83e\ude79', eclair: '\ud83e\udd50', cookie: '\ud83c\udf6a',
-  chocolate: '\ud83c\udf6b', truffle: '\ud83c\udf30', fudge: '\ud83c\udf70', brownie: '\ud83e\udeb5', praline: '\ud83d\udc8e',
-  ice_cream: '\ud83c\udf66', popsicle: '\ud83c\udf67', sundae: '\ud83c\udf68', gelato: '\ud83e\uddca', sorbet: '\ud83c\udf53',
-  register: '\ud83c\udfea',
-};
+/** Display names = emoji */
+export const TOY_NAMES_RU: Record<string, string> = { ...TOY_EMOJI };
 
-/** Color for each category */
+/** Color for each category — original palette */
 export const CATEGORY_COLORS: Record<ToyCategory | 'register', string> = {
-  [ToyCategory.Plush]: '#F06292',     // pink (candy)
-  [ToyCategory.Dolls]: '#CE93D8',     // lavender (baked)
-  [ToyCategory.Vehicles]: '#8D6E63',  // brown (chocolate)
-  [ToyCategory.Sports]: '#4FC3F7',    // sky-blue (frozen)
-  register: '#FFB74D',                // orange (register)
+  [ToyCategory.Plush]: '#5BC0EB',     // blue
+  [ToyCategory.Dolls]: '#C882D6',     // purple
+  [ToyCategory.Vehicles]: '#E85D5D',  // red
+  [ToyCategory.Sports]: '#7BC67E',    // green
+  register: '#F5A623',                // orange
 };
+
+/** All category colors as an ordered array */
+export const ALL_CATEGORY_COLORS = [
+  CATEGORY_COLORS[ToyCategory.Plush],
+  CATEGORY_COLORS[ToyCategory.Dolls],
+  CATEGORY_COLORS[ToyCategory.Vehicles],
+  CATEGORY_COLORS[ToyCategory.Sports],
+];
 
 /** Category names */
 export const CATEGORY_NAMES_RU: Record<ToyCategory, string> = {
-  [ToyCategory.Plush]: '\ud83c\udf6d \u041a\u0430\u0440\u0430\u043c\u0435\u043b\u044c',
-  [ToyCategory.Dolls]: '\ud83e\uddc1 \u0412\u044b\u043f\u0435\u0447\u043a\u0430',
-  [ToyCategory.Vehicles]: '\ud83c\udf6b \u0428\u043e\u043a\u043e\u043b\u0430\u0434',
-  [ToyCategory.Sports]: '\ud83c\udf66 \u041c\u043e\u0440\u043e\u0436\u0435\u043d\u043e\u0435',
+  [ToyCategory.Plush]: '🍭 Карамель',
+  [ToyCategory.Dolls]: '🧁 Выпечка',
+  [ToyCategory.Vehicles]: '🍫 Шоколад',
+  [ToyCategory.Sports]: '🍦 Мороженое',
 };
 
 export interface TileBlock {

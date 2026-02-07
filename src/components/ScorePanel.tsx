@@ -30,16 +30,16 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         {/* Score */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <StatChip icon="\ud83e\ude99" value={totalCoins} label="\u043c\u043e\u043d\u0435\u0442" />
+          <StatChip icon="🪙" value={totalCoins} label="монет" />
           {player.awards.length > 0 && (
-            <StatChip icon="\ud83c\udfc6" value={`+${awardBonus}`} label="\u043d\u0430\u0433\u0440\u0430\u0434\u044b" />
+            <StatChip icon="🏆" value={`+${awardBonus}`} label="награды" />
           )}
         </div>
 
         {/* Deck + progress */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 12, color: '#999' }}>
-            \ud83c\udccf {deckRemaining}
+            🃏 {deckRemaining}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 11, color: '#aaa' }}>{tilesPlaced}/15</span>

@@ -1,5 +1,5 @@
 import type { Tile, TileBlock } from '../game/types';
-import { CATEGORY_COLORS, TOY_EMOJI } from '../game/types';
+import { CATEGORY_COLORS, ALL_CATEGORY_COLORS, TOY_EMOJI } from '../game/types';
 
 interface TileViewProps {
   tile: Tile;
@@ -79,45 +79,93 @@ export function TileView({
       draggable={draggable}
       onDragStart={onDragStart}
     >
-      {tile.blocks.map((block, i) => {
-        const rect = blockRect(block);
-        const color = blockColor(block);
-        const border = darken(color, 30);
-        const isQuarter = block.cells.length === 1;
-        const isFull = block.cells.length === 4;
-        const emoji = TOY_EMOJI[block.toy] ?? block.toy;
-
-        return (
+      {tile.isStarter ? (
+        /* Register tile: 4 colored quadrants */
+        <>
+          {[0, 1, 2, 3].map((cellIdx) => {
+            const origin = cellOrigin(cellIdx);
+            const g = GAP / 2;
+            const l = origin.x === 0 ? 0 : origin.x + g;
+            const t = origin.y === 0 ? 0 : origin.y + g;
+            const r = origin.x + half === size ? size : origin.x + half - g;
+            const b = origin.y + half === size ? size : origin.y + half - g;
+            const color = ALL_CATEGORY_COLORS[cellIdx];
+            return (
+              <div
+                key={cellIdx}
+                style={{
+                  position: 'absolute',
+                  left: l,
+                  top: t,
+                  width: r - l,
+                  height: b - t,
+                  backgroundColor: color,
+                  border: `2px solid ${darken(color, 30)}`,
+                  borderRadius: 4,
+                  backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, transparent 50%, rgba(0,0,0,0.06) 100%)',
+                }}
+              />
+            );
+          })}
+          {/* Center cash register emoji */}
           <div
-            key={i}
             style={{
               position: 'absolute',
-              left: rect.x,
-              top: rect.y,
-              width: rect.w,
-              height: rect.h,
-              backgroundColor: color,
-              border: `2px solid ${border}`,
-              borderRadius: 4,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, transparent 50%, rgba(0,0,0,0.06) 100%)',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              fontSize: Math.max(size * 0.35, 24),
+              lineHeight: 1,
+              userSelect: 'none',
+              filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))',
+              zIndex: 2,
             }}
           >
-            <span
+            🏪
+          </div>
+        </>
+      ) : (
+        /* Normal tile: colored blocks with emoji */
+        tile.blocks.map((block, i) => {
+          const rect = blockRect(block);
+          const color = blockColor(block);
+          const border = darken(color, 30);
+          const isQuarter = block.cells.length === 1;
+          const isFull = block.cells.length === 4;
+          const emoji = TOY_EMOJI[block.toy] ?? block.toy;
+
+          return (
+            <div
+              key={i}
               style={{
-                fontSize: isQuarter ? Math.max(size * 0.18, 14) : isFull ? Math.max(size * 0.32, 22) : Math.max(size * 0.22, 16),
-                lineHeight: 1,
-                userSelect: 'none',
-                filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))',
+                position: 'absolute',
+                left: rect.x,
+                top: rect.y,
+                width: rect.w,
+                height: rect.h,
+                backgroundColor: color,
+                border: `2px solid ${border}`,
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, transparent 50%, rgba(0,0,0,0.06) 100%)',
               }}
             >
-              {emoji}
-            </span>
-          </div>
-        );
-      })}
+              <span
+                style={{
+                  fontSize: isQuarter ? Math.max(size * 0.18, 14) : isFull ? Math.max(size * 0.32, 22) : Math.max(size * 0.22, 16),
+                  lineHeight: 1,
+                  userSelect: 'none',
+                  filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))',
+                }}
+              >
+                {emoji}
+              </span>
+            </div>
+          );
+        })
+      )}
       {scorePreview != null && scorePreview > 0 && (
         <div
           style={{
