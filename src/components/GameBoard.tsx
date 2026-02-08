@@ -18,9 +18,11 @@ interface GameBoardProps {
   gap?: number;
   /** Responsive padding (default 12) */
   padding?: number;
+  /** Touch drag position for mobile highlight */
+  touchDragPos?: GridPos | null;
 }
 
-export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highlightPos, allowedPos, tileSize: tileSizeProp, gap: gapProp, padding: paddingProp }: GameBoardProps) {
+export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highlightPos, allowedPos, tileSize: tileSizeProp, gap: gapProp, padding: paddingProp, touchDragPos }: GameBoardProps) {
   const [dragOverPos, setDragOverPos] = useState<GridPos | null>(null);
   const [hoverPos, setHoverPos] = useState<GridPos | null>(null);
 
@@ -93,7 +95,8 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
         row.map((tile, c) => {
           const isValid = validSet.has(`${r},${c}`);
           const cellAllowed = isAllowed(r, c);
-          const isDragOver = dragOverPos?.row === r && dragOverPos?.col === c;
+          const isTouchOver = touchDragPos?.row === r && touchDragPos?.col === c;
+          const isDragOver = (dragOverPos?.row === r && dragOverPos?.col === c) || isTouchOver;
           const isHovered = hoverPos?.row === r && hoverPos?.col === c;
           const isTutorialHighlight = highlightPos?.row === r && highlightPos?.col === c;
           const showPreview = isValid && cellAllowed && (isDragOver || isHovered) && selectedTile;
@@ -114,6 +117,7 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
           return (
             <div
               key={`${r}-${c}`}
+              data-board-pos={`${r},${c}`}
               className={`board-cell ${isInteractive ? 'valid-placement' : ''} ${isDragOver ? 'drag-over' : ''} ${isTutorialHighlight ? 'tutorial-glow-item' : ''}`}
               style={{
                 width: tileSize,

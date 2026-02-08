@@ -4,6 +4,7 @@ import { TurnStep, GamePhase, ToyCategory as TC, TOYS, TOY_EMOJI, CATEGORY_COLOR
 import type { TutorialAction, TutorialStep } from './Tutorial';
 import { GameBoard } from './GameBoard';
 import { Market } from './Market';
+import { TileView } from './TileView';
 import { ScoreBar, getCollectedItems, countCategoryCells } from './ScorePanel';
 import { createSinglePlayerGame, placeTile, endTurn } from '../game/state';
 import { calculateFinalScore, determineMajorityAwards } from '../game/scoring';
@@ -25,20 +26,39 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
   const [showQuestPopup, setShowQuestPopup] = useState(false);
   const animFrameRef = useRef(0);
 
-  // Responsive sizing
+  // Responsive sizing — fit entire game in viewport
   const [vw, setVw] = useState(window.innerWidth);
+  const [vh, setVh] = useState(window.innerHeight);
   useEffect(() => {
-    const onResize = () => setVw(window.innerWidth);
+    const onResize = () => { setVw(window.innerWidth); setVh(window.innerHeight); };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
   const compact = vw < 500;
-  const boardPad = compact ? 8 : 12;
-  const boardGap = 4;
-  // board total = 2*containerPad(8) + 2*boardPad + 4*tile + 3*gap
-  const boardTileSize = Math.min(100, Math.floor((vw - 16 - 2 * boardPad - 3 * boardGap) / 4));
-  // market total = 2*containerPad(12) + 4*(tile+border6) + 3*gap(10)
-  const marketTileSize = Math.min(84, Math.floor((vw - 24 - 24 - 30) / 4));
+  const boardPad = compact ? 6 : 12;
+  const boardGap = compact ? 3 : 4;
+
+  // Market tile size from width: 4*(tile+6border) + 3*gap + 24 container pad
+  const mGap = compact ? 6 : 10;
+  const marketTileSize = Math.min(84, Math.floor((vw - 24 - 24 - 3 * mGap) / 4));
+
+  // Measure available board area height via ResizeObserver
+  const boardAreaRef = useRef<HTMLDivElement>(null);
+  const [boardAreaH, setBoardAreaH] = useState(vh - 200);
+  useEffect(() => {
+    const el = boardAreaRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(entries => {
+      setBoardAreaH(entries[0].contentRect.height);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // Board tile size: fit both available width and height
+  const tileFromW = Math.floor((vw - 16 - 2 * boardPad - 3 * boardGap) / 4);
+  const tileFromH = Math.floor((boardAreaH - 2 * boardPad - 3 * boardGap) / 4);
+  const boardTileSize = Math.min(100, tileFromW, Math.max(40, tileFromH));
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const isGameOver = gameState.phase === GamePhase.Ended;
@@ -147,6 +167,71 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     }
   }, [gameState.turnStep]);
 
+  // --- Touch drag-and-drop for mobile ---
+  const touchRef = useRef<{ index: number; startX: number; startY: number; isDragging: boolean } | null>(null);
+  const touchDragPosRef = useRef<{ x: number; y: number; boardPos: GridPos | null } | null>(null);
+  const handlePlaceTileRef = useRef(handlePlaceTile);
+  handlePlaceTileRef.current = handlePlaceTile;
+  const [touchDragPos, setTouchDragPos] = useState<{ x: number; y: number; boardPos: GridPos | null } | null>(null);
+  const touchRafRef = useRef(0);
+
+  const handleTouchDragStart = useCallback((index: number, e: React.TouchEvent) => {
+    if (gameState.turnStep !== TurnStep.PickTile || isGameOver) return;
+    if (inTutorial && tutorialStep) {
+      if (tutorialStep.action !== 'pick_tile') return;
+      if (!tutorialStep.freePlay && tutorialStep.marketIndex !== undefined && index !== tutorialStep.marketIndex) return;
+    }
+    e.preventDefault();
+    const touch = e.touches[0];
+    touchRef.current = { index, startX: touch.clientX, startY: touch.clientY, isDragging: false };
+    setSelectedMarketIndex(index);
+    onTutorialAction('pick_tile');
+  }, [gameState.turnStep, isGameOver, onTutorialAction, inTutorial, tutorialStep]);
+
+  useEffect(() => {
+    const onTouchMove = (e: TouchEvent) => {
+      if (!touchRef.current) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - touchRef.current.startX;
+      const dy = touch.clientY - touchRef.current.startY;
+      if (!touchRef.current.isDragging && Math.sqrt(dx * dx + dy * dy) > 10) {
+        touchRef.current.isDragging = true;
+      }
+      if (!touchRef.current.isDragging) return;
+      e.preventDefault();
+      const x = touch.clientX;
+      const y = touch.clientY;
+      cancelAnimationFrame(touchRafRef.current);
+      touchRafRef.current = requestAnimationFrame(() => {
+        const el = document.elementFromPoint(x, y);
+        const cellEl = (el?.closest('[data-board-pos]') ?? null) as HTMLElement | null;
+        let boardPos: GridPos | null = null;
+        if (cellEl) {
+          const parts = cellEl.getAttribute('data-board-pos')!.split(',');
+          boardPos = { row: Number(parts[0]), col: Number(parts[1]) };
+        }
+        touchDragPosRef.current = { x, y, boardPos };
+        setTouchDragPos({ x, y, boardPos });
+      });
+    };
+    const onTouchEnd = () => {
+      if (!touchRef.current) return;
+      if (touchRef.current.isDragging && touchDragPosRef.current?.boardPos) {
+        handlePlaceTileRef.current(touchDragPosRef.current.boardPos);
+      }
+      touchRef.current = null;
+      touchDragPosRef.current = null;
+      cancelAnimationFrame(touchRafRef.current);
+      setTouchDragPos(null);
+    };
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    return () => {
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+  }, []);
+
   const handleNewGame = useCallback(() => {
     setGameState(createSinglePlayerGame());
     setSelectedMarketIndex(null);
@@ -172,14 +257,14 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     : undefined;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Segoe UI', sans-serif" }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: "'Segoe UI', sans-serif", overflow: 'hidden' }}>
       {/* Top score bar */}
       <div className={highlightScorebar ? 'tutorial-highlight' : ''}>
         <ScoreBar player={currentPlayer} showQuest={gameNumber >= 2} compact={compact} />
       </div>
 
       {/* Board — centered */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px 8px' }}>
+      <div ref={boardAreaRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px 8px', overflow: 'hidden', minHeight: 0 }}>
         <div className={highlightBoard ? 'tutorial-highlight' : ''}>
           <GameBoard
             board={currentPlayer.board}
@@ -191,6 +276,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
             tileSize={boardTileSize}
             gap={boardGap}
             padding={boardPad}
+            touchDragPos={touchDragPos?.boardPos ?? null}
           />
         </div>
 
@@ -222,12 +308,30 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
           onSelect={handleSelectMarketTile}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
+          onTouchDragStart={handleTouchDragStart}
           disabled={gameState.turnStep === TurnStep.ScoreShown || isGameOver}
           highlightIndex={tutorialStep?.marketIndex}
           lockedIndex={tutorialMarketLock}
           tileSize={marketTileSize}
         />
       </div>
+
+      {/* Floating tile preview for touch drag */}
+      {touchDragPos && selectedTile && (
+        <div
+          style={{
+            position: 'fixed',
+            left: touchDragPos.x - boardTileSize / 2,
+            top: touchDragPos.y - boardTileSize * 0.7,
+            zIndex: 5000,
+            pointerEvents: 'none',
+            opacity: 0.85,
+            filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.3))',
+          }}
+        >
+          <TileView tile={selectedTile} size={boardTileSize} />
+        </div>
+      )}
 
       {/* Quest popup before level with quest */}
       {showQuestPopup && gameNumber >= 2 && (
