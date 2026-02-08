@@ -4,6 +4,7 @@ import { CATEGORY_COLORS, ToyCategory as TC, TOYS, TOY_EMOJI } from '../game/typ
 interface ScoreBarProps {
   player: Player;
   showQuest?: boolean;
+  compact?: boolean;
 }
 
 /** Compute which items are collected per category from the board */
@@ -41,7 +42,7 @@ function countCategoryCells(board: (Tile | null)[][], category: ToyCategory): nu
   return count;
 }
 
-export function ScoreBar({ player, showQuest }: ScoreBarProps) {
+export function ScoreBar({ player, showQuest, compact }: ScoreBarProps) {
   const totalCoins = player.coins;
   const awardBonus = player.awards.reduce((s, a) => s + a.value, 0);
   const filledSlots = player.board.flat().filter(t => t !== null).length;
@@ -54,6 +55,16 @@ export function ScoreBar({ player, showQuest }: ScoreBarProps) {
   const greenCells = countCategoryCells(player.board, TC.Candy);
   const greenTarget = 10;
 
+  // Responsive sizes
+  const scoreFs = compact ? 20 : 24;
+  const emojiFs = compact ? 15 : 18;
+  const smallFs = compact ? 11 : 14;
+  const questFs = compact ? 15 : 18;
+  const collGap = compact ? 3 : 6;
+  const collPad = compact ? '2px 3px' : '3px 5px';
+  const emojiGap = compact ? 1 : 2;
+  const barPad = compact ? '6px 10px 4px' : '8px 16px 6px';
+
   return (
     <div
       style={{
@@ -62,21 +73,21 @@ export function ScoreBar({ player, showQuest }: ScoreBarProps) {
         zIndex: 100,
         backgroundColor: '#fff',
         borderBottom: '1px solid #eee',
-        padding: '8px 16px 6px',
+        padding: barPad,
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
       }}
     >
       {/* Top row: score + progress */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 22 }}>💵</span>
-          <span style={{ fontSize: 24, fontWeight: 800, color: '#333' }}>{totalCoins + awardBonus}</span>
+          <span style={{ fontSize: scoreFs - 2 }}>💵</span>
+          <span style={{ fontSize: scoreFs, fontWeight: 800, color: '#333' }}>{totalCoins + awardBonus}</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 24, fontWeight: 700, color: '#555' }}>{tilesPlaced}/15</span>
+          <span style={{ fontSize: scoreFs, fontWeight: 700, color: '#555' }}>{tilesPlaced}/15</span>
           <div style={{
-            width: 60,
+            width: compact ? 40 : 60,
             height: 8,
             backgroundColor: '#eee',
             borderRadius: 4,
@@ -98,8 +109,8 @@ export function ScoreBar({ player, showQuest }: ScoreBarProps) {
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',
-        gap: 6,
-        marginTop: 6,
+        gap: collGap,
+        marginTop: compact ? 4 : 6,
         padding: '2px 0',
       }}>
         {categories.map(cat => {
@@ -109,15 +120,15 @@ export function ScoreBar({ player, showQuest }: ScoreBarProps) {
           const isComplete = catCollected.size >= 4;
           const completions = isComplete ? 1 : 0;
           return (
-            <div key={cat} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+            <div key={cat} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: compact ? 1 : 2 }}>
               {isComplete && (
-                <span style={{ fontSize: 14, fontWeight: 700, color: catColor, lineHeight: 1 }}>+5000</span>
+                <span style={{ fontSize: smallFs, fontWeight: 700, color: catColor, lineHeight: 1 }}>+5000</span>
               )}
               <div
                 style={{
                   display: 'flex',
-                  gap: 2,
-                  padding: '3px 5px',
+                  gap: emojiGap,
+                  padding: collPad,
                   borderRadius: 8,
                   backgroundColor: isComplete ? catColor : 'transparent',
                   border: `1.5px solid ${isComplete ? catColor : '#e0e0e0'}`,
@@ -131,7 +142,7 @@ export function ScoreBar({ player, showQuest }: ScoreBarProps) {
                     <span
                       key={toy}
                       style={{
-                        fontSize: 18,
+                        fontSize: emojiFs,
                         filter: found ? 'none' : 'grayscale(1) opacity(0.3)',
                         transition: 'filter 0.3s ease',
                       }}
@@ -142,7 +153,7 @@ export function ScoreBar({ player, showQuest }: ScoreBarProps) {
                 })}
               </div>
               <span style={{
-                fontSize: 14,
+                fontSize: smallFs,
                 fontWeight: 700,
                 color: isComplete ? catColor : '#bbb',
                 lineHeight: 1,
@@ -166,17 +177,17 @@ export function ScoreBar({ player, showQuest }: ScoreBarProps) {
           backgroundColor: greenCells >= greenTarget ? 'rgba(123, 198, 126, 0.15)' : 'rgba(0,0,0,0.03)',
           borderRadius: 8,
         }}>
-          <span style={{ fontSize: 18 }}>🟩</span>
-          <span style={{ fontSize: 18, fontWeight: 600, color: '#555' }}>Зелёных блоков:</span>
+          <span style={{ fontSize: questFs }}>🟩</span>
+          <span style={{ fontSize: questFs, fontWeight: 600, color: '#555' }}>Зелёных блоков:</span>
           <span style={{
-            fontSize: 18,
+            fontSize: questFs,
             fontWeight: 800,
             color: greenCells >= greenTarget ? '#4CAF50' : '#333',
           }}>
             {greenCells}/{greenTarget}
           </span>
           {greenCells >= greenTarget && (
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#4CAF50' }}>✓</span>
+            <span style={{ fontSize: smallFs, fontWeight: 700, color: '#4CAF50' }}>✓</span>
           )}
           <div style={{
             width: 50,

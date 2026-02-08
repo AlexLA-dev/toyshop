@@ -29,9 +29,11 @@ interface MarketProps {
   highlightIndex?: number;
   /** Tutorial: only this index is interactive (others are dimmed) */
   lockedIndex?: number;
+  /** Responsive tile size (default 84) */
+  tileSize?: number;
 }
 
-export function Market({ tiles, selectedIndex, onSelect, onDragStart, onDragEnd, disabled, highlightIndex, lockedIndex }: MarketProps) {
+export function Market({ tiles, selectedIndex, onSelect, onDragStart, onDragEnd, disabled, highlightIndex, lockedIndex, tileSize = 84 }: MarketProps) {
   injectMarketCSS();
 
   // Track previous tile IDs to detect newly added tiles for slide animation
@@ -47,7 +49,7 @@ export function Market({ tiles, selectedIndex, onSelect, onDragStart, onDragEnd,
   });
 
   return (
-    <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', gap: tileSize < 80 ? 6 : 10, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
       {tiles.map((tile, i) => {
         const isSelected = selectedIndex === i;
         const isHighlighted = highlightIndex === i;
@@ -70,7 +72,7 @@ export function Market({ tiles, selectedIndex, onSelect, onDragStart, onDragEnd,
           >
             <TileView
               tile={tile}
-              size={84}
+              size={tileSize}
               onClick={tileDisabled ? undefined : () => onSelect(i)}
               draggable={!tileDisabled}
               onDragStart={(e) => onDragStart(i, e)}

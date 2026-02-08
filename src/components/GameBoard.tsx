@@ -12,9 +12,15 @@ interface GameBoardProps {
   highlightPos?: GridPos | null;
   /** Tutorial: only allow placement at this position (null = allow all valid) */
   allowedPos?: GridPos | null;
+  /** Responsive tile size (default 100) */
+  tileSize?: number;
+  /** Responsive gap (default 4) */
+  gap?: number;
+  /** Responsive padding (default 12) */
+  padding?: number;
 }
 
-export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highlightPos, allowedPos }: GameBoardProps) {
+export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highlightPos, allowedPos, tileSize: tileSizeProp, gap: gapProp, padding: paddingProp }: GameBoardProps) {
   const [dragOverPos, setDragOverPos] = useState<GridPos | null>(null);
   const [hoverPos, setHoverPos] = useState<GridPos | null>(null);
 
@@ -65,8 +71,9 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
     }
   };
 
-  const tileSize = 100;
-  const gap = 4;
+  const tileSize = tileSizeProp ?? 100;
+  const gap = gapProp ?? 4;
+  const padding = paddingProp ?? 12;
 
   return (
     <div
@@ -76,7 +83,7 @@ export function GameBoard({ board, selectedTile, onPlaceTile, disabled, highligh
         gridTemplateColumns: `repeat(4, ${tileSize}px)`,
         gridTemplateRows: `repeat(4, ${tileSize}px)`,
         gap,
-        padding: 12,
+        padding,
         backgroundColor: '#f0ebe3',
         borderRadius: 12,
         boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.1)',

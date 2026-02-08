@@ -198,7 +198,7 @@ export function TutorialHint({ step, onClickAdvance }: TutorialHintProps) {
       <div
         style={{
           position: 'fixed',
-          bottom: 120,
+          bottom: 'max(100px, 15vh)',
           left: 0,
           right: 0,
           display: 'flex',

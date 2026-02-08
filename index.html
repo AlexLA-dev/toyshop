@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Магазин Сладостей</title>
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,8 +12,12 @@
         color: #333;
         -webkit-font-smoothing: antialiased;
         min-height: 100vh;
+        min-height: 100dvh;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       }
-      #root { min-height: 100vh; }
+      #root { min-height: 100vh; min-height: 100dvh; }
     </style>
   </head>
   <body>

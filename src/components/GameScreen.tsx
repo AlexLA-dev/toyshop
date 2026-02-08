@@ -25,6 +25,21 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
   const [showQuestPopup, setShowQuestPopup] = useState(false);
   const animFrameRef = useRef(0);
 
+  // Responsive sizing
+  const [vw, setVw] = useState(window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const compact = vw < 500;
+  const boardPad = compact ? 8 : 12;
+  const boardGap = 4;
+  // board total = 2*containerPad(8) + 2*boardPad + 4*tile + 3*gap
+  const boardTileSize = Math.min(100, Math.floor((vw - 16 - 2 * boardPad - 3 * boardGap) / 4));
+  // market total = 2*containerPad(12) + 4*(tile+border6) + 3*gap(10)
+  const marketTileSize = Math.min(84, Math.floor((vw - 24 - 24 - 30) / 4));
+
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   const isGameOver = gameState.phase === GamePhase.Ended;
   const inTutorial = tutorialStep !== null;
@@ -160,7 +175,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Segoe UI', sans-serif" }}>
       {/* Top score bar */}
       <div className={highlightScorebar ? 'tutorial-highlight' : ''}>
-        <ScoreBar player={currentPlayer} showQuest={gameNumber >= 2} />
+        <ScoreBar player={currentPlayer} showQuest={gameNumber >= 2} compact={compact} />
       </div>
 
       {/* Board — centered */}
@@ -173,6 +188,9 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
             disabled={!canPlace}
             highlightPos={tutorialStep?.boardPos ?? null}
             allowedPos={tutorialAllowedPos}
+            tileSize={boardTileSize}
+            gap={boardGap}
+            padding={boardPad}
           />
         </div>
 
@@ -207,6 +225,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
           disabled={gameState.turnStep === TurnStep.ScoreShown || isGameOver}
           highlightIndex={tutorialStep?.marketIndex}
           lockedIndex={tutorialMarketLock}
+          tileSize={marketTileSize}
         />
       </div>
 
@@ -315,10 +334,11 @@ function EndGameOverlay({ score, player, showQuest, onNewGame }: { score: number
         style={{
           backgroundColor: '#fff',
           borderRadius: 24,
-          padding: '32px 48px',
+          padding: '24px 28px',
           textAlign: 'center',
           boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
           zIndex: 2002,
+          maxWidth: '90vw',
           animation: 'score-pop 0.6s ease-out forwards',
         }}
       >
@@ -431,8 +451,9 @@ function QuestPopup({ onDismiss }: { onDismiss: () => void }) {
         style={{
           backgroundColor: '#fff',
           borderRadius: 20,
-          padding: '32px 40px',
+          padding: '24px 28px',
           textAlign: 'center',
+          maxWidth: '90vw',
           boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
         }}
       >
