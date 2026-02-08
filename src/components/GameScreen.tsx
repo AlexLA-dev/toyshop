@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { GameState, GridPos } from '../game/types';
-import { TurnStep, GamePhase } from '../game/types';
+import type { GameState, GridPos, Player, ToyCategory } from '../game/types';
+import { TurnStep, GamePhase, ToyCategory as TC, TOYS, TOY_EMOJI, CATEGORY_COLORS } from '../game/types';
 import type { TutorialAction, TutorialStep } from './Tutorial';
 import { GameBoard } from './GameBoard';
 import { Market } from './Market';
-import { ScoreBar } from './ScorePanel';
+import { ScoreBar, getCollectedItems, countCategoryCells } from './ScorePanel';
 import { createSinglePlayerGame, placeTile, endTurn } from '../game/state';
 import { calculateFinalScore, determineMajorityAwards } from '../game/scoring';
 
@@ -21,6 +21,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
   const [selectedMarketIndex, setSelectedMarketIndex] = useState<number | null>(null);
   const [showEndOverlay, setShowEndOverlay] = useState(false);
   const [animatedScore, setAnimatedScore] = useState(0);
+  const [gameNumber, setGameNumber] = useState(1);
   const animFrameRef = useRef(0);
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
@@ -128,6 +129,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     setSelectedMarketIndex(null);
     setShowEndOverlay(false);
     setAnimatedScore(0);
+    setGameNumber(n => n + 1);
   }, []);
 
   const tutorialTarget = tutorialStep?.target ?? null;
@@ -149,7 +151,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Segoe UI', sans-serif" }}>
       {/* Top score bar */}
       <div className={highlightScorebar ? 'tutorial-highlight' : ''}>
-        <ScoreBar player={currentPlayer} deckRemaining={gameState.deck.length} />
+        <ScoreBar player={currentPlayer} showQuest={gameNumber >= 2} />
       </div>
 
       {/* Board — centered */}
@@ -199,7 +201,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
       </div>
 
       {/* End-game overlay with confetti + score counter */}
-      {showEndOverlay && <EndGameOverlay score={animatedScore} onNewGame={handleNewGame} />}
+      {showEndOverlay && <EndGameOverlay score={animatedScore} player={currentPlayer} showQuest={gameNumber >= 2} onNewGame={handleNewGame} />}
     </div>
   );
 }
@@ -243,8 +245,13 @@ function injectConfettiCSS() {
 
 const CONFETTI_COLORS = ['#E85D5D', '#5BC0EB', '#C882D6', '#7BC67E', '#F5A623', '#FFD700'];
 
-function EndGameOverlay({ score, onNewGame }: { score: number; onNewGame: () => void }) {
+function EndGameOverlay({ score, player, showQuest, onNewGame }: { score: number; player: Player; showQuest: boolean; onNewGame: () => void }) {
   injectConfettiCSS();
+
+  const collected = getCollectedItems(player.board);
+  const categories = Object.values(TC) as ToyCategory[];
+  const greenCells = countCategoryCells(player.board, TC.Candy);
+  const greenTarget = 10;
 
   const confettiPieces = useRef(
     Array.from({ length: 60 }, (_, i) => ({
@@ -305,7 +312,70 @@ function EndGameOverlay({ score, onNewGame }: { score: number; onNewGame: () => 
         <div style={{ fontSize: 52, fontWeight: 900, color: '#333', marginBottom: 4 }}>
           {score}
         </div>
-        <div style={{ fontSize: 28, marginBottom: 20 }}>💵</div>
+        <div style={{ fontSize: 28, marginBottom: 16 }}>💵</div>
+
+        {/* Collection summary */}
+        <div style={{ marginBottom: 16 }}>
+          {categories.map(cat => {
+            const items = TOYS[cat];
+            const catCollected = collected[cat];
+            const isComplete = catCollected.size >= 4;
+            const catColor = CATEGORY_COLORS[cat];
+            return (
+              <div key={cat} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                padding: '3px 0',
+              }}>
+                <div style={{ display: 'flex', gap: 2 }}>
+                  {items.map(toy => {
+                    const found = catCollected.has(toy);
+                    const emoji = TOY_EMOJI[toy] ?? toy;
+                    return (
+                      <span key={toy} style={{
+                        fontSize: 20,
+                        filter: found ? 'none' : 'grayscale(1) opacity(0.3)',
+                      }}>
+                        {emoji}
+                      </span>
+                    );
+                  })}
+                </div>
+                {isComplete ? (
+                  <span style={{ fontSize: 14, fontWeight: 700, color: catColor }}>+5000 ✓</span>
+                ) : (
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#ccc' }}>—</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Quest result */}
+        {showQuest && (
+          <div style={{
+            padding: '8px 16px',
+            marginBottom: 16,
+            backgroundColor: greenCells >= greenTarget ? 'rgba(123, 198, 126, 0.15)' : 'rgba(0,0,0,0.03)',
+            borderRadius: 8,
+          }}>
+            <span style={{ fontSize: 14 }}>🎯 </span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#555' }}>Зелёных клеток: </span>
+            <span style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: greenCells >= greenTarget ? '#4CAF50' : '#333',
+            }}>
+              {greenCells}/{greenTarget}
+            </span>
+            {greenCells >= greenTarget && (
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#4CAF50' }}> ✓</span>
+            )}
+          </div>
+        )}
+
         <button
           onClick={onNewGame}
           style={{

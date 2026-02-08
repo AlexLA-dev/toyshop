@@ -3,7 +3,7 @@ import { CATEGORY_COLORS, ToyCategory as TC, TOYS, TOY_EMOJI } from '../game/typ
 
 interface ScoreBarProps {
   player: Player;
-  deckRemaining: number;
+  showQuest?: boolean;
 }
 
 /** Compute which items are collected per category from the board */
@@ -26,7 +26,22 @@ function getCollectedItems(board: (Tile | null)[][]): Record<ToyCategory, Set<st
   return collected as Record<ToyCategory, Set<string>>;
 }
 
-export function ScoreBar({ player, deckRemaining }: ScoreBarProps) {
+/** Count total cells of a given category on the board */
+function countCategoryCells(board: (Tile | null)[][], category: ToyCategory): number {
+  let count = 0;
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const tile = board[r]?.[c];
+      if (!tile) continue;
+      for (const block of tile.blocks) {
+        if (block.category === category) count += block.cells.length;
+      }
+    }
+  }
+  return count;
+}
+
+export function ScoreBar({ player, showQuest }: ScoreBarProps) {
   const totalCoins = player.coins;
   const awardBonus = player.awards.reduce((s, a) => s + a.value, 0);
   const filledSlots = player.board.flat().filter(t => t !== null).length;
@@ -35,6 +50,9 @@ export function ScoreBar({ player, deckRemaining }: ScoreBarProps) {
 
   const collected = getCollectedItems(player.board);
   const categories = Object.values(TC) as ToyCategory[];
+
+  const greenCells = countCategoryCells(player.board, TC.Candy);
+  const greenTarget = 10;
 
   return (
     <div
@@ -48,40 +66,34 @@ export function ScoreBar({ player, deckRemaining }: ScoreBarProps) {
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
       }}
     >
-      {/* Top row: stats */}
+      {/* Top row: score + progress */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        {/* Score */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <StatChip icon="💵" value={totalCoins + awardBonus} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontSize: 22 }}>💵</span>
+          <span style={{ fontSize: 24, fontWeight: 800, color: '#333' }}>{totalCoins + awardBonus}</span>
         </div>
 
-        {/* Deck + progress */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 18, color: '#999' }}>
-            🃏 {deckRemaining}
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 16, color: '#aaa', fontWeight: 600 }}>{tilesPlaced}/15</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 24, fontWeight: 700, color: '#555' }}>{tilesPlaced}/15</span>
+          <div style={{
+            width: 60,
+            height: 8,
+            backgroundColor: '#eee',
+            borderRadius: 4,
+            overflow: 'hidden',
+          }}>
             <div style={{
-              width: 60,
-              height: 6,
-              backgroundColor: '#eee',
-              borderRadius: 3,
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                width: `${progress * 100}%`,
-                height: '100%',
-                backgroundColor: '#4CAF50',
-                borderRadius: 3,
-                transition: 'width 0.3s ease',
-              }} />
-            </div>
+              width: `${progress * 100}%`,
+              height: '100%',
+              backgroundColor: '#4CAF50',
+              borderRadius: 4,
+              transition: 'width 0.3s ease',
+            }} />
           </div>
         </div>
       </div>
 
-      {/* Collection tracker — each group has its own ×N multiplier and bonus */}
+      {/* Collection tracker */}
       <div style={{
         display: 'flex',
         alignItems: 'flex-start',
@@ -95,20 +107,20 @@ export function ScoreBar({ player, deckRemaining }: ScoreBarProps) {
           const catCollected = collected[cat];
           const catColor = CATEGORY_COLORS[cat];
           const isComplete = catCollected.size >= 4;
-          const count = catCollected.size;
+          const completions = isComplete ? 1 : 0;
           return (
-            <div key={cat} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            <div key={cat} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               {isComplete && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: catColor }}>+5000</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: catColor, lineHeight: 1 }}>+5000</span>
               )}
               <div
                 style={{
                   display: 'flex',
-                  gap: 1,
-                  padding: '2px 4px',
-                  borderRadius: 6,
+                  gap: 2,
+                  padding: '3px 5px',
+                  borderRadius: 8,
                   backgroundColor: isComplete ? catColor : 'transparent',
-                  border: `1px solid ${isComplete ? catColor : '#e0e0e0'}`,
+                  border: `1.5px solid ${isComplete ? catColor : '#e0e0e0'}`,
                   transition: 'all 0.3s ease',
                 }}
               >
@@ -119,7 +131,7 @@ export function ScoreBar({ player, deckRemaining }: ScoreBarProps) {
                     <span
                       key={toy}
                       style={{
-                        fontSize: 14,
+                        fontSize: 18,
                         filter: found ? 'none' : 'grayscale(1) opacity(0.3)',
                         transition: 'filter 0.3s ease',
                       }}
@@ -130,25 +142,62 @@ export function ScoreBar({ player, deckRemaining }: ScoreBarProps) {
                 })}
               </div>
               <span style={{
-                fontSize: 10,
+                fontSize: 14,
                 fontWeight: 700,
                 color: isComplete ? catColor : '#bbb',
+                lineHeight: 1,
               }}>
-                ×{count}
+                ×{completions}
               </span>
             </div>
           );
         })}
       </div>
+
+      {/* Green cells quest */}
+      {showQuest && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          marginTop: 6,
+          padding: '4px 8px',
+          backgroundColor: greenCells >= greenTarget ? 'rgba(123, 198, 126, 0.15)' : 'rgba(0,0,0,0.03)',
+          borderRadius: 8,
+        }}>
+          <span style={{ fontSize: 14 }}>🎯</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#555' }}>Зелёных клеток:</span>
+          <span style={{
+            fontSize: 18,
+            fontWeight: 800,
+            color: greenCells >= greenTarget ? '#4CAF50' : '#333',
+          }}>
+            {greenCells}/{greenTarget}
+          </span>
+          {greenCells >= greenTarget && (
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#4CAF50' }}>✓</span>
+          )}
+          <div style={{
+            width: 50,
+            height: 6,
+            backgroundColor: '#eee',
+            borderRadius: 3,
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: `${Math.min(greenCells / greenTarget, 1) * 100}%`,
+              height: '100%',
+              backgroundColor: greenCells >= greenTarget ? '#4CAF50' : '#7BC67E',
+              borderRadius: 3,
+              transition: 'width 0.3s ease',
+            }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function StatChip({ icon, value }: { icon: string; value: number | string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-      <span style={{ fontSize: 28 }}>{icon}</span>
-      <span style={{ fontSize: 32, fontWeight: 800, color: '#333' }}>{value}</span>
-    </div>
-  );
-}
+/** Export collection helpers for EndGameOverlay */
+export { getCollectedItems, countCategoryCells };

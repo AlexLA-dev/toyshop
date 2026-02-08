@@ -1,5 +1,22 @@
+import { useRef, useEffect } from 'react';
 import type { Tile } from '../game/types';
 import { TileView } from './TileView';
+
+const MARKET_ANIM_CSS = `
+@keyframes market-slide-in {
+  0% { transform: translateX(100px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+`;
+
+let marketCssInjected = false;
+function injectMarketCSS() {
+  if (marketCssInjected) return;
+  marketCssInjected = true;
+  const style = document.createElement('style');
+  style.textContent = MARKET_ANIM_CSS;
+  document.head.appendChild(style);
+}
 
 interface MarketProps {
   tiles: Tile[];
@@ -14,6 +31,20 @@ interface MarketProps {
 }
 
 export function Market({ tiles, selectedIndex, onSelect, onDragStart, disabled, highlightIndex, lockedIndex }: MarketProps) {
+  injectMarketCSS();
+
+  // Track previous tile IDs to detect newly added tiles for slide animation
+  const prevIdsRef = useRef<string[] | null>(null);
+  if (prevIdsRef.current === null) {
+    prevIdsRef.current = tiles.map(t => t.id);
+  }
+  const prevIdSet = new Set(prevIdsRef.current);
+  const newTileIds = new Set(tiles.filter(t => !prevIdSet.has(t.id)).map(t => t.id));
+
+  useEffect(() => {
+    prevIdsRef.current = tiles.map(t => t.id);
+  });
+
   return (
     <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center' }}>
       {tiles.map((tile, i) => {
@@ -21,6 +52,7 @@ export function Market({ tiles, selectedIndex, onSelect, onDragStart, disabled, 
         const isHighlighted = highlightIndex === i;
         const isLocked = lockedIndex !== undefined && i !== lockedIndex;
         const tileDisabled = disabled || isLocked;
+        const isNew = newTileIds.has(tile.id);
         return (
           <div
             key={tile.id}
@@ -31,6 +63,7 @@ export function Market({ tiles, selectedIndex, onSelect, onDragStart, disabled, 
               transition: 'border-color 0.15s, transform 0.15s, opacity 0.15s',
               transform: isSelected ? 'scale(1.08)' : 'scale(1)',
               opacity: isLocked ? 0.35 : 1,
+              animation: isNew ? 'market-slide-in 0.35s ease-out' : 'none',
             }}
           >
             <TileView
