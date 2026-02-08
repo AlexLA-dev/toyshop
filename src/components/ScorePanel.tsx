@@ -166,8 +166,8 @@ export function ScoreBar({ player, showQuest }: ScoreBarProps) {
           backgroundColor: greenCells >= greenTarget ? 'rgba(123, 198, 126, 0.15)' : 'rgba(0,0,0,0.03)',
           borderRadius: 8,
         }}>
-          <span style={{ fontSize: 14 }}>🎯</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#555' }}>Зелёных клеток:</span>
+          <span style={{ fontSize: 18 }}>🟩</span>
+          <span style={{ fontSize: 18, fontWeight: 600, color: '#555' }}>Зелёных блоков:</span>
           <span style={{
             fontSize: 18,
             fontWeight: 800,

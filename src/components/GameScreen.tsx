@@ -22,6 +22,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
   const [showEndOverlay, setShowEndOverlay] = useState(false);
   const [animatedScore, setAnimatedScore] = useState(0);
   const [gameNumber, setGameNumber] = useState(1);
+  const [showQuestPopup, setShowQuestPopup] = useState(false);
   const animFrameRef = useRef(0);
 
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
@@ -124,12 +125,20 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     animFrameRef.current = requestAnimationFrame(step);
   };
 
+  const handleDragEnd = useCallback(() => {
+    // If tile wasn't placed during drag, deselect it (return to market)
+    if (gameState.turnStep === TurnStep.PickTile) {
+      setSelectedMarketIndex(null);
+    }
+  }, [gameState.turnStep]);
+
   const handleNewGame = useCallback(() => {
     setGameState(createSinglePlayerGame());
     setSelectedMarketIndex(null);
     setShowEndOverlay(false);
     setAnimatedScore(0);
     setGameNumber(n => n + 1);
+    setShowQuestPopup(true);
   }, []);
 
   const tutorialTarget = tutorialStep?.target ?? null;
@@ -194,11 +203,17 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
           selectedIndex={selectedMarketIndex}
           onSelect={handleSelectMarketTile}
           onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
           disabled={gameState.turnStep === TurnStep.ScoreShown || isGameOver}
           highlightIndex={tutorialStep?.marketIndex}
           lockedIndex={tutorialMarketLock}
         />
       </div>
+
+      {/* Quest popup before level with quest */}
+      {showQuestPopup && gameNumber >= 2 && (
+        <QuestPopup onDismiss={() => setShowQuestPopup(false)} />
+      )}
 
       {/* End-game overlay with confetti + score counter */}
       {showEndOverlay && <EndGameOverlay score={animatedScore} player={currentPlayer} showQuest={gameNumber >= 2} onNewGame={handleNewGame} />}
@@ -361,8 +376,8 @@ function EndGameOverlay({ score, player, showQuest, onNewGame }: { score: number
             backgroundColor: greenCells >= greenTarget ? 'rgba(123, 198, 126, 0.15)' : 'rgba(0,0,0,0.03)',
             borderRadius: 8,
           }}>
-            <span style={{ fontSize: 14 }}>🎯 </span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#555' }}>Зелёных клеток: </span>
+            <span style={{ fontSize: 18 }}>🟩 </span>
+            <span style={{ fontSize: 18, fontWeight: 600, color: '#555' }}>Зелёных блоков: </span>
             <span style={{
               fontSize: 18,
               fontWeight: 800,
@@ -371,7 +386,7 @@ function EndGameOverlay({ score, player, showQuest, onNewGame }: { score: number
               {greenCells}/{greenTarget}
             </span>
             {greenCells >= greenTarget && (
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#4CAF50' }}> ✓</span>
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#4CAF50' }}> ✓</span>
             )}
           </div>
         )}
@@ -391,6 +406,56 @@ function EndGameOverlay({ score, player, showQuest, onNewGame }: { score: number
           }}
         >
           Новая игра
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Pre-level quest popup ---- */
+
+function QuestPopup({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        zIndex: 3000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#fff',
+          borderRadius: 20,
+          padding: '32px 40px',
+          textAlign: 'center',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+        }}
+      >
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🟩</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#333', marginBottom: 8 }}>Задание</div>
+        <div style={{ fontSize: 18, color: '#555', marginBottom: 24 }}>
+          Собери 10+ зелёных блоков
+        </div>
+        <button
+          onClick={onDismiss}
+          style={{
+            padding: '12px 32px',
+            fontSize: 18,
+            fontWeight: 700,
+            backgroundColor: '#4CAF50',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(76,175,80,0.3)',
+          }}
+        >
+          Начать
         </button>
       </div>
     </div>

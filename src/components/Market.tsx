@@ -23,6 +23,7 @@ interface MarketProps {
   selectedIndex: number | null;
   onSelect: (index: number) => void;
   onDragStart: (index: number, e: React.DragEvent) => void;
+  onDragEnd?: () => void;
   disabled?: boolean;
   /** Tutorial: highlight a specific tile with glow */
   highlightIndex?: number;
@@ -30,7 +31,7 @@ interface MarketProps {
   lockedIndex?: number;
 }
 
-export function Market({ tiles, selectedIndex, onSelect, onDragStart, disabled, highlightIndex, lockedIndex }: MarketProps) {
+export function Market({ tiles, selectedIndex, onSelect, onDragStart, onDragEnd, disabled, highlightIndex, lockedIndex }: MarketProps) {
   injectMarketCSS();
 
   // Track previous tile IDs to detect newly added tiles for slide animation
@@ -46,7 +47,7 @@ export function Market({ tiles, selectedIndex, onSelect, onDragStart, disabled, 
   });
 
   return (
-    <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
       {tiles.map((tile, i) => {
         const isSelected = selectedIndex === i;
         const isHighlighted = highlightIndex === i;
@@ -57,6 +58,7 @@ export function Market({ tiles, selectedIndex, onSelect, onDragStart, disabled, 
           <div
             key={tile.id}
             className={isHighlighted ? 'tutorial-glow-item' : ''}
+            onDragEnd={() => onDragEnd?.()}
             style={{
               border: isSelected ? '3px solid #4CAF50' : '3px solid transparent',
               borderRadius: 11,
