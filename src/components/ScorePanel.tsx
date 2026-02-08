@@ -1,10 +1,9 @@
-import type { Tile, Player, Award, ToyCategory } from '../game/types';
-import { CATEGORY_COLORS, CATEGORY_NAMES_RU, ToyCategory as TC, TOYS, TOY_EMOJI } from '../game/types';
+import type { Tile, Player, ToyCategory } from '../game/types';
+import { CATEGORY_COLORS, ToyCategory as TC, TOYS, TOY_EMOJI } from '../game/types';
 
 interface ScoreBarProps {
   player: Player;
   deckRemaining: number;
-  message: string;
 }
 
 /** Compute which items are collected per category from the board */
@@ -27,7 +26,7 @@ function getCollectedItems(board: (Tile | null)[][]): Record<ToyCategory, Set<st
   return collected as Record<ToyCategory, Set<string>>;
 }
 
-export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
+export function ScoreBar({ player, deckRemaining }: ScoreBarProps) {
   const totalCoins = player.coins;
   const awardBonus = player.awards.reduce((s, a) => s + a.value, 0);
   const filledSlots = player.board.flat().filter(t => t !== null).length;
@@ -36,7 +35,6 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
 
   const collected = getCollectedItems(player.board);
   const categories = Object.values(TC) as ToyCategory[];
-  const completedCollections = categories.filter(cat => collected[cat].size >= 4).length;
 
   return (
     <div
@@ -46,7 +44,7 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
         zIndex: 100,
         backgroundColor: '#fff',
         borderBottom: '1px solid #eee',
-        padding: '10px 16px 6px',
+        padding: '8px 16px 6px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
       }}
     >
@@ -54,10 +52,7 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         {/* Score */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <StatChip icon="💵" value={totalCoins} />
-          {awardBonus > 0 && (
-            <StatChip icon="🏆" value={`+${awardBonus}`} />
-          )}
+          <StatChip icon="💵" value={totalCoins + awardBonus} />
         </div>
 
         {/* Deck + progress */}
@@ -86,80 +81,64 @@ export function ScoreBar({ player, deckRemaining, message }: ScoreBarProps) {
         </div>
       </div>
 
-      {/* Collection tracker */}
+      {/* Collection tracker — each group has its own ×N multiplier and bonus */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        gap: 8,
+        gap: 6,
         marginTop: 6,
-        padding: '4px 0',
+        padding: '2px 0',
       }}>
         {categories.map(cat => {
           const items = TOYS[cat];
           const catCollected = collected[cat];
           const catColor = CATEGORY_COLORS[cat];
           const isComplete = catCollected.size >= 4;
+          const count = catCollected.size;
           return (
-            <div
-              key={cat}
-              style={{
-                display: 'flex',
-                gap: 1,
-                padding: '2px 4px',
-                borderRadius: 6,
-                backgroundColor: isComplete ? catColor : 'transparent',
-                border: `1px solid ${isComplete ? catColor : '#e0e0e0'}`,
-                transition: 'all 0.3s ease',
-              }}
-            >
-              {items.map(toy => {
-                const found = catCollected.has(toy);
-                const emoji = TOY_EMOJI[toy] ?? toy;
-                return (
-                  <span
-                    key={toy}
-                    style={{
-                      fontSize: 14,
-                      filter: found ? 'none' : 'grayscale(1) opacity(0.3)',
-                      transition: 'filter 0.3s ease',
-                    }}
-                  >
-                    {emoji}
-                  </span>
-                );
-              })}
+            <div key={cat} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+              {isComplete && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: catColor }}>+5000</span>
+              )}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 1,
+                  padding: '2px 4px',
+                  borderRadius: 6,
+                  backgroundColor: isComplete ? catColor : 'transparent',
+                  border: `1px solid ${isComplete ? catColor : '#e0e0e0'}`,
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                {items.map(toy => {
+                  const found = catCollected.has(toy);
+                  const emoji = TOY_EMOJI[toy] ?? toy;
+                  return (
+                    <span
+                      key={toy}
+                      style={{
+                        fontSize: 14,
+                        filter: found ? 'none' : 'grayscale(1) opacity(0.3)',
+                        transition: 'filter 0.3s ease',
+                      }}
+                    >
+                      {emoji}
+                    </span>
+                  );
+                })}
+              </div>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: isComplete ? catColor : '#bbb',
+              }}>
+                ×{count}
+              </span>
             </div>
           );
         })}
-        <span style={{
-          fontSize: 14,
-          fontWeight: 700,
-          color: completedCollections > 0 ? '#4CAF50' : '#ccc',
-        }}>
-          ×{completedCollections}
-        </span>
-      </div>
-
-      {/* Awards row */}
-      {player.awards.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {player.awards.map((award, i) => (
-            <AwardBadge key={i} award={award} />
-          ))}
-        </div>
-      )}
-
-      {/* Message */}
-      <div style={{
-        textAlign: 'center',
-        fontSize: 22,
-        fontWeight: 700,
-        color: '#555',
-        marginTop: 4,
-        minHeight: 28,
-      }}>
-        {message}
       </div>
     </div>
   );
@@ -170,29 +149,6 @@ function StatChip({ icon, value }: { icon: string; value: number | string }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
       <span style={{ fontSize: 28 }}>{icon}</span>
       <span style={{ fontSize: 32, fontWeight: 800, color: '#333' }}>{value}</span>
-    </div>
-  );
-}
-
-function AwardBadge({ award }: { award: Award }) {
-  const color = CATEGORY_COLORS[award.category];
-  const catName = CATEGORY_NAMES_RU[award.category];
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        padding: '3px 12px',
-        borderRadius: 12,
-        backgroundColor: color,
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: 700,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      +5000 {catName}
     </div>
   );
 }

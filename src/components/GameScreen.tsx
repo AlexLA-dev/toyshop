@@ -19,7 +19,6 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     () => initialState ?? createSinglePlayerGame()
   );
   const [selectedMarketIndex, setSelectedMarketIndex] = useState<number | null>(null);
-  const [message, setMessage] = useState<string>('🍬 Выбери карточку снизу');
   const [showEndOverlay, setShowEndOverlay] = useState(false);
   const [animatedScore, setAnimatedScore] = useState(0);
   const animFrameRef = useRef(0);
@@ -31,17 +30,30 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
   const selectedTile = selectedMarketIndex !== null ? gameState.market[selectedMarketIndex] ?? null : null;
   const canPlace = selectedMarketIndex !== null && gameState.turnStep === TurnStep.PickTile && !isGameOver;
 
-  // Auto-endTurn during tutorial when ScoreShown
+  // Auto-endTurn always when ScoreShown (no "Далее" button anywhere)
   useEffect(() => {
-    if (inTutorial && gameState.turnStep === TurnStep.ScoreShown) {
+    if (gameState.turnStep === TurnStep.ScoreShown && !isGameOver) {
       const timer = setTimeout(() => {
         const newState = endTurn(gameState);
-        setGameState(newState);
-        setMessage('🍬 Выбери карточку снизу');
+        if (newState.phase === GamePhase.Ended) {
+          const majorityAwards = determineMajorityAwards(newState.players);
+          const updatedPlayers = newState.players.map(p => ({
+            ...p,
+            awards: [...p.awards, ...(majorityAwards.get(p.id) ?? [])],
+          }));
+          const finalState = { ...newState, players: updatedPlayers };
+          setGameState(finalState);
+          const finalScore = calculateFinalScore(updatedPlayers[0]);
+          setAnimatedScore(0);
+          setShowEndOverlay(true);
+          animateScoreCounter(finalScore);
+        } else {
+          setGameState(newState);
+        }
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, [inTutorial, gameState]);
+  }, [gameState, isGameOver]);
 
   const handleSelectMarketTile = useCallback((index: number) => {
     if (gameState.turnStep !== TurnStep.PickTile || isGameOver) return;
@@ -54,10 +66,8 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
 
     if (selectedMarketIndex === index) {
       setSelectedMarketIndex(null);
-      setMessage('🍬 Выбери карточку снизу');
     } else {
       setSelectedMarketIndex(index);
-      setMessage('👆 Поставь на подсвеченное место');
       onTutorialAction('pick_tile');
     }
   }, [gameState.turnStep, isGameOver, selectedMarketIndex, onTutorialAction, inTutorial, tutorialStep]);
@@ -78,7 +88,6 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     canvas.width = 1;
     canvas.height = 1;
     e.dataTransfer.setDragImage(canvas, 0, 0);
-    setMessage('👆 Перетащи на доску');
   }, [gameState.turnStep, isGameOver, onTutorialAction, inTutorial, tutorialStep]);
 
   const handlePlaceTile = useCallback((pos: GridPos) => {
@@ -95,36 +104,8 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     const result = placeTile(gameState, selectedMarketIndex, pos);
     setGameState(result.state);
     setSelectedMarketIndex(null);
-
-    if (result.score > 0) {
-      setMessage(`+${result.score} 💵`);
-    } else {
-      setMessage('0 💵');
-    }
     onTutorialAction('place_tile');
   }, [gameState, selectedMarketIndex, onTutorialAction, inTutorial, tutorialStep]);
-
-  const handleEndTurn = useCallback(() => {
-    const newState = endTurn(gameState);
-    setGameState(newState);
-
-    if (newState.phase === GamePhase.Ended) {
-      const majorityAwards = determineMajorityAwards(newState.players);
-      const updatedPlayers = newState.players.map(p => ({
-        ...p,
-        awards: [...p.awards, ...(majorityAwards.get(p.id) ?? [])],
-      }));
-      const finalState = { ...newState, players: updatedPlayers };
-      setGameState(finalState);
-      const finalScore = calculateFinalScore(updatedPlayers[0]);
-      setMessage(`🏆 Итого: ${finalScore} 💵`);
-      setShowEndOverlay(true);
-      animateScoreCounter(finalScore);
-    } else {
-      setMessage('🍬 Выбери карточку снизу');
-    }
-    onTutorialAction('end_turn' as TutorialAction);
-  }, [gameState, onTutorialAction]);
 
   const animateScoreCounter = (target: number) => {
     cancelAnimationFrame(animFrameRef.current);
@@ -145,7 +126,6 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
   const handleNewGame = useCallback(() => {
     setGameState(createSinglePlayerGame());
     setSelectedMarketIndex(null);
-    setMessage('🍬 Выбери карточку снизу');
     setShowEndOverlay(false);
     setAnimatedScore(0);
   }, []);
@@ -169,7 +149,7 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Segoe UI', sans-serif" }}>
       {/* Top score bar */}
       <div className={highlightScorebar ? 'tutorial-highlight' : ''}>
-        <ScoreBar player={currentPlayer} deckRemaining={gameState.deck.length} message={message} />
+        <ScoreBar player={currentPlayer} deckRemaining={gameState.deck.length} />
       </div>
 
       {/* Board — centered */}
@@ -185,19 +165,14 @@ export function GameScreen({ tutorialStep, onTutorialAction, initialState }: Gam
           />
         </div>
 
-        {/* Action buttons — NEVER show during tutorial */}
-        <div style={{ marginTop: 12, display: 'flex', gap: 8, minHeight: 48 }}>
-          {gameState.turnStep === TurnStep.ScoreShown && !isGameOver && !inTutorial && (
-            <button onClick={handleEndTurn} style={btnStyle('#4CAF50')}>
-              Далее
-            </button>
-          )}
-          {isGameOver && !showEndOverlay && (
+        {/* New game button only when game over without overlay */}
+        {isGameOver && !showEndOverlay && (
+          <div style={{ marginTop: 12 }}>
             <button onClick={handleNewGame} style={btnStyle('#2196F3')}>
               Новая игра
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom: market */}
